@@ -1,0 +1,1173 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Dexie, { Table } from 'dexie';
+import {
+  Plus,
+  FolderPlus,
+  Folder,
+  BookOpen,
+  Download,
+  CheckCircle2,
+  Search,
+  ExternalLink,
+  X,
+  Globe,
+  Sparkles,
+  Trash2,
+  Layers,
+  BookMarked,
+  Upload,
+  AlertTriangle,
+} from 'lucide-react';
+
+// ============================================================================
+// 1. CẤU TRÚC CƠ SỞ DỮ LIỆU INDEXEDDB (TỪ VỰNG, THƯ MỤC RIÊNG, GÓI CẤP ĐỘ)
+// ============================================================================
+
+export type StudyLevel = 'so-cap-1' | 'so-cap-2' | 'trung-cap-3' | 'trung-cap-4' | 'van-hoc' | 'custom';
+
+export interface VocabFolder {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  createdAt: number;
+}
+
+export interface VocabRecord {
+  id: string;
+  userId: string;
+  folderId: string;
+  packLevel?: StudyLevel;
+  entryType: 'vocab' | 'grammar'; // Phân biệt Từ vựng và Ngữ pháp
+  term: string;                     // Từ tiếng Hàn hoặc mẫu ngữ pháp (VD: -아/어서, 바라보다)
+  lemma: string;                    // Nguyên thể
+  pronunciation: string;            // Phiên âm
+  meaning: string;                  // Nghĩa tiếng Việt
+  pos: string;                      // Từ loại / Cấu trúc
+  grammarExplanation?: string;      // Giải thích cách chia & ngữ pháp
+  exampleKo?: string;               // Ví dụ tiếng Hàn
+  exampleVi?: string;               // Dịch ví dụ tiếng Việt
+  personalNote?: string;            // Ghi chú cá nhân
+  createdAt: number;
+}
+
+export interface LevelOfflinePack {
+  id: StudyLevel;
+  badge: string;
+  title: string;
+  subtitle: string;
+  vocabCount: number;
+  grammarCount: number;
+  isDownloaded: boolean;
+  items: Omit<VocabRecord, 'id' | 'userId' | 'folderId' | 'createdAt'>[];
+}
+
+class DiAnTuHaVocabDB extends Dexie {
+  folders!: Table<VocabFolder, string>;
+  vocabRecords!: Table<VocabRecord, string>;
+  downloadedPackIds!: Table<{ id: string; downloadedAt: number }, string>;
+
+  constructor() {
+    super('DiAnTuHa_VocabHub_v2_3');
+    this.version(1).stores({
+      folders: 'id, userId, name, createdAt',
+      vocabRecords: 'id, userId, folderId, packLevel, entryType, term, lemma, createdAt',
+      downloadedPackIds: 'id, downloadedAt',
+    });
+  }
+}
+
+const vocabDB = new DiAnTuHaVocabDB();
+
+// ============================================================================
+// 2. DỮ LIỆU GÓI TỪ VỰNG & NGỮ PHÁP SƠ CẤP 1, 2 - TRUNG CẤP 3, 4 (CHUẨN NAVER)
+// ============================================================================
+
+const NAVER_CURRICULUM_PACKS: Omit<LevelOfflinePack, 'isDownloaded'>[] = [
+  {
+    id: 'so-cap-1',
+    badge: 'Sơ cấp 1 • NAVER',
+    title: 'Từ vựng & Ngữ pháp Sơ cấp 1',
+    subtitle: 'Nền tảng giao tiếp sinh hoạt, thì hiện tại/quá khứ, tiểu từ cơ bản & động từ thiết yếu.',
+    vocabCount: 450,
+    grammarCount: 45,
+    items: [
+      {
+        packLevel: 'so-cap-1',
+        entryType: 'vocab',
+        term: '기다리다',
+        lemma: '기다리다',
+        pronunciation: '기다리다',
+        meaning: 'chờ đợi, đợi',
+        pos: 'Động từ',
+        exampleKo: '친구들을 카페 앞에서 기다리고 있어요.',
+        exampleVi: 'Tôi đang đợi các bạn ở trước quán cà phê.',
+      },
+      {
+        packLevel: 'so-cap-1',
+        entryType: 'grammar',
+        term: '-아/어서 (Nguyên nhân)',
+        lemma: '-아/어서',
+        pronunciation: '아서/어서',
+        meaning: 'vì... nên... (diễn tả nguyên nhân tự nhiên, không dùng với mệnh lệnh)',
+        pos: 'Ngữ pháp Sơ cấp 1',
+        grammarExplanation: 'Gốc động/tính từ kết thúc bằng ㅏ, ㅗ + 아서; các nguyên âm khác + 어서; 하다 → 해서.',
+        exampleKo: '배가 아파서 병원에 갔어요.',
+        exampleVi: 'Vì đau bụng nên tôi đã đi bệnh viện.',
+      },
+    ],
+  },
+  {
+    id: 'so-cap-2',
+    badge: 'Sơ cấp 2 • NAVER',
+    title: 'Từ vựng & Ngữ pháp Sơ cấp 2',
+    subtitle: 'Diễn đạt dự định, kinh nghiệm, lời khuyên, so sánh và liên kết câu phức cơ bản.',
+    vocabCount: 600,
+    grammarCount: 55,
+    items: [
+      {
+        packLevel: 'so-cap-2',
+        entryType: 'vocab',
+        term: '익숙하다',
+        lemma: '익숙하다',
+        pronunciation: '익쑤카다',
+        meaning: 'quen thuộc, thành thạo',
+        pos: 'Tính từ',
+        exampleKo: '이제 한국 생활에 많이 익숙해졌어요.',
+        exampleVi: 'Bây giờ tôi đã quen với cuộc sống ở Hàn Quốc nhiều rồi.',
+      },
+      {
+        packLevel: 'so-cap-2',
+        entryType: 'grammar',
+        term: '-(으)ㄴ 적이 있다/없다',
+        lemma: '-(으)ㄴ 적이 있다',
+        pronunciation: '은 적이 있다',
+        meaning: 'đã từng / chưa từng làm gì (kinh nghiệm quá khứ)',
+        pos: 'Ngữ pháp Sơ cấp 2',
+        grammarExplanation: 'Động từ có patchim + 은 적이 있다; không patchim hoặc ㄹ + ㄴ 적이 있다.',
+        exampleKo: '한국 소설을 원서로 읽은 적이 있어요.',
+        exampleVi: 'Tôi đã từng đọc tiểu thuyết Hàn Quốc bằng bản gốc.',
+      },
+    ],
+  },
+  {
+    id: 'trung-cap-3',
+    badge: 'Trung cấp 3 • NAVER',
+    title: 'Từ vựng & Ngữ pháp Trung cấp 3',
+    subtitle: 'Từ vựng Hán Hàn mở rộng, câu gián tiếp, diễn đạt phỏng đoán, điều kiện & sắc thái văn viết.',
+    vocabCount: 850,
+    grammarCount: 70,
+    items: [
+      {
+        packLevel: 'trung-cap-3',
+        entryType: 'vocab',
+        term: '망설이다',
+        lemma: '망설이다',
+        pronunciation: '망서리다',
+        meaning: 'do dự, chần chừ, lưỡng lự',
+        pos: 'Động từ',
+        exampleKo: '그는 대답을 하지 못하고 한참을 망설였다.',
+        exampleVi: 'Anh ấy không thể trả lời mà cứ chần chừ hồi lâu.',
+      },
+      {
+        packLevel: 'trung-cap-3',
+        entryType: 'grammar',
+        term: '-는 바람에',
+        lemma: '-는 바람에',
+        pronunciation: '는 바람에',
+        meaning: 'vì... nên... (nguyên nhân bất ngờ dẫn đến kết quả tiêu cực ngoài ý muốn)',
+        pos: 'Ngữ pháp Trung cấp 3',
+        grammarExplanation: 'Gắn trực tiếp sau thân động từ: V + 는 바람에. Vế sau thường chia thì quá khứ.',
+        exampleKo: '갑자기 비가 오는 바람에 옷이 다 젖었어요.',
+        exampleVi: 'Vì trời đột nhiên đổ mưa nên quần áo ướt hết cả.',
+      },
+    ],
+  },
+  {
+    id: 'trung-cap-4',
+    badge: 'Trung cấp 4 • NAVER',
+    title: 'Từ vựng & Ngữ pháp Trung cấp 4',
+    subtitle: 'Quán dụng ngữ, cấu trúc nghị luận TOPIK II, biểu hiện cảm xúc tinh tế trong văn học.',
+    vocabCount: 1100,
+    grammarCount: 85,
+    items: [
+      {
+        packLevel: 'trung-cap-4',
+        entryType: 'vocab',
+        term: '헤아리다',
+        lemma: '헤아리다',
+        pronunciation: '헤아리다',
+        meaning: 'thấu hiểu, cảm thông; đong đếm',
+        pos: 'Động từ',
+        exampleKo: '상대방의 깊은 마음을 헤아리기란 쉽지 않다.',
+        exampleVi: 'Để thấu hiểu tấm lòng sâu kín của đối phương thật không dễ dàng.',
+      },
+      {
+        packLevel: 'trung-cap-4',
+        entryType: 'grammar',
+        term: '-(으)ㄹ 법하다',
+        lemma: '-(으)ㄹ 법하다',
+        pronunciation: '을 법하다',
+        meaning: 'đáng lẽ ra, có khả năng cao, hợp lý để...',
+        pos: 'Ngữ pháp Trung cấp 4',
+        grammarExplanation: 'Diễn tả một sự việc hoàn toàn có cơ sở hoặc dễ xảy ra trong tình huống đó.',
+        exampleKo: '그 정도 노력했으면 합격할 법도 한데 아쉽네요.',
+        exampleVi: 'Nếu đã nỗ lực đến mức đó thì đáng lẽ phải đỗ rồi, tiếc thật đấy.',
+      },
+    ],
+  },
+];
+
+// ============================================================================
+// 3. COMPONENT CHÍNH: SỔ TAY + THƯ MỤC RIÊNG + GÓI SƠ/TRUNG CẤP + NAVER NHÚNG
+// ============================================================================
+
+interface VocabAndOfflineHubProps {
+  userId?: string;
+}
+
+export const VocabAndOfflineHub: React.FC<VocabAndOfflineHubProps> = ({
+  userId = 'local_user_default',
+}) => {
+  // Tab điều hướng chính
+  const [activeTab, setActiveTab] = useState<'notebook' | 'offline-packs'>('offline-packs');
+
+  // State Thư mục & Từ vựng cá nhân
+  const [folders, setFolders] = useState<VocabFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('all');
+  const [records, setRecords] = useState<VocabRecord[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'vocab' | 'grammar'>('all');
+  const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderColor, setNewFolderColor] = useState('#9D84B7');
+
+  // State Gói ngoại tuyến Sơ cấp 1, 2 - Trung cấp 3, 4
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
+
+  // State Modal dấu "+" thêm từ vựng / ngữ pháp thủ công
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [formEntryType, setFormEntryType] = useState<'vocab' | 'grammar'>('vocab');
+  const [formTerm, setFormTerm] = useState('');
+  const [formLemma, setFormLemma] = useState('');
+  const [formPronunciation, setFormPronunciation] = useState('');
+  const [formMeaning, setFormMeaning] = useState('');
+  const [formPos, setFormPos] = useState('Động từ');
+  const [formFolderId, setFormFolderId] = useState<string>('');
+  const [formLevel, setFormLevel] = useState<StudyLevel>('so-cap-1');
+  const [formExampleKo, setFormExampleKo] = useState('');
+  const [formExampleVi, setFormExampleVi] = useState('');
+  const [formGrammarNote, setFormGrammarNote] = useState('');
+
+  // State Ngăn tra cứu NAVER trực tiếp ngay trên web (không chuyển tab)
+  const [naverDrawerQuery, setNaverDrawerQuery] = useState<string | null>(null);
+  const [naverIframeBlockedHint, setNaverIframeBlockedHint] = useState(false);
+
+  const fileImportRef = useRef<HTMLInputElement | null>(null);
+
+  // Tải dữ liệu từ IndexedDB
+  const refreshAllData = useCallback(async () => {
+    let userFolders = await vocabDB.folders.where('userId').equals(userId).toArray();
+    if (userFolders.length === 0) {
+      const defaultFolder: VocabFolder = {
+        id: `folder_default_${userId}`,
+        userId,
+        name: 'Sổ tay mặc định',
+        color: '#4A6B53',
+        createdAt: Date.now(),
+      };
+      await vocabDB.folders.add(defaultFolder);
+      userFolders = [defaultFolder];
+    }
+    setFolders(userFolders);
+    if (!formFolderId && userFolders[0]) {
+      setFormFolderId(userFolders[0].id);
+    }
+
+    const userRecords = await vocabDB.vocabRecords
+      .where('userId')
+      .equals(userId)
+      .reverse()
+      .sortBy('createdAt');
+    setRecords(userRecords);
+
+    const downloaded = await vocabDB.downloadedPackIds.toArray();
+    setDownloadedIds(new Set(downloaded.map((d) => d.id)));
+  }, [userId, formFolderId]);
+
+  useEffect(() => {
+    refreshAllData();
+  }, [refreshAllData]);
+
+  // --------------------------------------------------------------------------
+  // TẠO THƯ MỤC TỪ VỰNG RIÊNG
+  // --------------------------------------------------------------------------
+  const handleCreateFolder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newFolderName.trim();
+    if (!cleanName) return;
+
+    const created: VocabFolder = {
+      id: `folder_${crypto.randomUUID()}`,
+      userId,
+      name: cleanName,
+      color: newFolderColor,
+      createdAt: Date.now(),
+    };
+    await vocabDB.folders.add(created);
+    setNewFolderName('');
+    setSelectedFolderId(created.id);
+    await refreshAllData();
+  };
+
+  const handleDeleteFolder = async (folderId: string, name: string) => {
+    if (!window.confirm(`Xóa thư mục "${name}"? Các từ vựng bên trong sẽ được chuyển về thư mục mặc định.`)) {
+      return;
+    }
+    const fallbackId = folders[0]?.id || `folder_default_${userId}`;
+    await vocabDB.transaction('rw', vocabDB.folders, vocabDB.vocabRecords, async () => {
+      await vocabDB.vocabRecords.where('folderId').equals(folderId).modify({ folderId: fallbackId });
+      await vocabDB.folders.delete(folderId);
+    });
+    if (selectedFolderId === folderId) setSelectedFolderId('all');
+    await refreshAllData();
+  };
+
+  // --------------------------------------------------------------------------
+  // LƯU GÓI SƠ CẤP 1, 2 - TRUNG CẤP 3, 4 VÀO INDEXEDDB
+  // --------------------------------------------------------------------------
+  const handleDownloadCurriculumPack = async (pack: Omit<LevelOfflinePack, 'isDownloaded'>) => {
+    const now = Date.now();
+    const targetFolder = folders[0]?.id || `folder_default_${userId}`;
+
+    const newRecords: VocabRecord[] = pack.items.map((item) => ({
+      ...item,
+      id: crypto.randomUUID(),
+      userId,
+      folderId: targetFolder,
+      createdAt: now,
+    }));
+
+    await vocabDB.transaction('rw', vocabDB.downloadedPackIds, vocabDB.vocabRecords, async () => {
+      await vocabDB.downloadedPackIds.put({ id: pack.id, downloadedAt: now });
+      await vocabDB.vocabRecords.bulkAdd(newRecords);
+    });
+
+    await refreshAllData();
+  };
+
+  // --------------------------------------------------------------------------
+  // BỔ SUNG TỪ VỰNG / NGỮ PHÁP BẰNG NÚT "+"
+  // --------------------------------------------------------------------------
+  const handleSaveNewEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTerm.trim() || !formMeaning.trim()) return;
+
+    const newItem: VocabRecord = {
+      id: crypto.randomUUID(),
+      userId,
+      folderId: formFolderId || folders[0]?.id || `folder_default_${userId}`,
+      packLevel: formLevel,
+      entryType: formEntryType,
+      term: formTerm.trim(),
+      lemma: (formLemma || formTerm).trim(),
+      pronunciation: formPronunciation.trim(),
+      meaning: formMeaning.trim(),
+      pos: formPos.trim() || (formEntryType === 'grammar' ? 'Ngữ pháp' : 'Từ vựng'),
+      grammarExplanation: formGrammarNote.trim() || undefined,
+      exampleKo: formExampleKo.trim() || undefined,
+      exampleVi: formExampleVi.trim() || undefined,
+      createdAt: Date.now(),
+    };
+
+    await vocabDB.vocabRecords.add(newItem);
+    // Reset form
+    setFormTerm('');
+    setFormLemma('');
+    setFormPronunciation('');
+    setFormMeaning('');
+    setFormExampleKo('');
+    setFormExampleVi('');
+    setFormGrammarNote('');
+    setIsAddModalOpen(false);
+    setActiveTab('notebook');
+    await refreshAllData();
+  };
+
+  // --------------------------------------------------------------------------
+  // NHẬP FILE TỪ VỰNG TỪ BÊN NGOÀI (CSV / JSON) VÀO THƯ MỤC ĐANG CHỌN
+  // --------------------------------------------------------------------------
+  const handleImportExternalFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = (await file.text()).replace(/^\uFEFF/, '').trim();
+      const targetFolder =
+        selectedFolderId === 'all' ? folders[0]?.id || `folder_default_${userId}` : selectedFolderId;
+      const now = Date.now();
+      const parsedToAdd: VocabRecord[] = [];
+
+      if (file.name.endsWith('.json')) {
+        const arr = JSON.parse(text);
+        if (Array.isArray(arr)) {
+          for (const row of arr) {
+            if (!row.term && !row.word) continue;
+            parsedToAdd.push({
+              id: crypto.randomUUID(),
+              userId,
+              folderId: targetFolder,
+              packLevel: row.packLevel || 'custom',
+              entryType: row.entryType === 'grammar' ? 'grammar' : 'vocab',
+              term: String(row.term || row.word),
+              lemma: String(row.lemma || row.term || row.word),
+              pronunciation: String(row.pronunciation || ''),
+              meaning: String(row.meaning || ''),
+              pos: String(row.pos || 'Từ vựng'),
+              grammarExplanation: row.grammarExplanation ? String(row.grammarExplanation) : undefined,
+              exampleKo: row.exampleKo ? String(row.exampleKo) : undefined,
+              exampleVi: row.exampleVi ? String(row.exampleVi) : undefined,
+              createdAt: now,
+            });
+          }
+        }
+      } else {
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',').map((c) => c.replace(/^"|"$/g, '').trim());
+          if (!cols[0] || !cols[1]) continue;
+          parsedToAdd.push({
+            id: crypto.randomUUID(),
+            userId,
+            folderId: targetFolder,
+            packLevel: 'custom',
+            entryType: 'vocab',
+            term: cols[0],
+            lemma: cols[1] || cols[0],
+            pronunciation: cols[2] || '',
+            meaning: cols[3] || cols[1],
+            pos: cols[4] || 'Từ vựng',
+            exampleKo: cols[5] || '',
+            exampleVi: cols[6] || '',
+            createdAt: now,
+          });
+        }
+      }
+
+      if (parsedToAdd.length > 0) {
+        await vocabDB.vocabRecords.bulkAdd(parsedToAdd);
+        await refreshAllData();
+        alert(`Đã bổ sung ${parsedToAdd.length} mục từ vào thư mục từ vựng!`);
+      }
+    } catch {
+      alert('Không thể đọc tệp từ vựng. Hãy kiểm tra định dạng CSV hoặc JSON.');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  // Mở ngăn tra cứu NAVER trực tiếp ngay trên web (không rời trang)
+  const openInAppNaverLookup = (query: string) => {
+    setNaverIframeBlockedHint(false);
+    setNaverDrawerQuery(query.trim());
+  };
+
+  // Lọc danh sách trong Sổ tay từ vựng
+  const filteredRecords = records.filter((rec) => {
+    const matchFolder = selectedFolderId === 'all' || rec.folderId === selectedFolderId;
+    const matchType = filterType === 'all' || rec.entryType === filterType;
+    const q = searchQuery.toLowerCase();
+    const matchQuery =
+      !q ||
+      rec.term.toLowerCase().includes(q) ||
+      rec.lemma.toLowerCase().includes(q) ||
+      rec.meaning.toLowerCase().includes(q);
+    return matchFolder && matchType && matchQuery;
+  });
+
+  return (
+    <div className="min-h-screen bg-[#121413] text-[#F4EFE6] p-4 md:p-6 relative">
+      {/* ====================================================================
+          THANH ĐIỀU HƯỚNG TRÊN CÙNG (GIỐNG GIAO DIỆN CỦA BẠN + NÚT +)
+      ==================================================================== */}
+      <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#262A27]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('notebook')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition ${
+              activeTab === 'notebook'
+                ? 'bg-[#253529] border-[#4A6B53] text-[#F4EFE6]'
+                : 'bg-[#191C1A] border-[#2E332F] text-[#B8BDB9] hover:border-[#4A6B53]'
+            }`}
+          >
+            <BookMarked className="w-4 h-4 text-[#8AC49A]" />
+            <span>Sổ Tay Từ Vựng ({records.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('offline-packs')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition ${
+              activeTab === 'offline-packs'
+                ? 'bg-[#253529] border-[#4A6B53] text-[#F4EFE6]'
+                : 'bg-[#191C1A] border-[#2E332F] text-[#B8BDB9] hover:border-[#4A6B53]'
+            }`}
+          >
+            <Download className="w-4 h-4 text-[#8AC49A]" />
+            <span>Gói Ngoại Tuyến (Sơ / Trung cấp)</span>
+          </button>
+        </div>
+
+        {/* NÚT DẤU "+" BỔ SUNG TỪ VỰNG / NGỮ PHÁP TRỰC TIẾP */}
+        <button
+          type="button"
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#4A6B53] hover:bg-[#3d5a45] text-white shadow-lg shadow-black/40 transition"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Thêm từ vựng / ngữ pháp</span>
+        </button>
+      </div>
+
+      {/* ====================================================================
+          TAB 1: KHO GÓI TỪ ĐIỂN & NGỮ PHÁP NGOẠI TUYẾN (SƠ CẤP 1, 2 - TRUNG CẤP 3, 4)
+      ==================================================================== */}
+      {activeTab === 'offline-packs' && (
+        <div className="max-w-6xl mx-auto mt-6 rounded-2xl bg-[#161917] border border-[#2A2E2B] p-5 md:p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl md:text-2xl font-serif font-semibold text-[#F4EFE6]">
+                Kho Gói Từ Vựng & Ngữ Pháp Hàn - Việt Ngoại Tuyến
+              </h2>
+              <p className="text-xs md:text-sm text-[#9CA19E] mt-1">
+                Tải dữ liệu từ vựng và cấu trúc ngữ pháp theo cấp độ chuẩn NAVER về IndexedDB để tra cứu tức thì khi đọc truyện ngoại tuyến.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => openInAppNaverLookup('한국어 문법')}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-[#25202C] border border-[#473A57] text-[#C8B4E0] hover:bg-[#31293B] transition self-start"
+            >
+              <Globe className="w-4 h-4" />
+              <span>Mở Từ điển NAVER ngay trên web</span>
+            </button>
+          </div>
+
+          {/* LƯỚI 4 GÓI SƠ CẤP 1, 2 & TRUNG CẤP 3, 4 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            {NAVER_CURRICULUM_PACKS.map((pack) => {
+              const isSaved = downloadedIds.has(pack.id);
+              return (
+                <div
+                  key={pack.id}
+                  className="rounded-xl bg-[#1A1D1B] border border-[#2D322E] p-5 flex flex-col justify-between space-y-4 hover:border-[#4A6B53]/70 transition"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-[#2D2536] text-[#C4B0DC]">
+                        {pack.badge}
+                      </span>
+                      <span className="text-xs text-[#8E9490]">
+                        {pack.vocabCount} từ vựng • {pack.grammarCount} ngữ pháp
+                      </span>
+                    </div>
+
+                    <h3 className="mt-3 text-lg font-semibold text-[#F4EFE6]">{pack.title}</h3>
+                    <p className="mt-1 text-xs md:text-sm text-[#9CA19E] leading-relaxed">
+                      {pack.subtitle}
+                    </p>
+
+                    {/* Xem nhanh 2 mục tiêu biểu trong gói & bấm tra NAVER trực tiếp */}
+                    <div className="mt-3 pt-3 border-t border-[#262A27] flex flex-wrap gap-2">
+                      {pack.items.map((sample, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => openInAppNaverLookup(sample.lemma)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-[#131514] border border-[#2C302D] text-[#D2D6D3] hover:border-[#9D84B7]"
+                          title="Nhấn để tra cứu mục này trên NAVER ngay trong trang"
+                        >
+                          <span className="text-[#8AC49A]">
+                            {sample.entryType === 'grammar' ? '[NP]' : '[TV]'}
+                          </span>
+                          <span>{sample.term}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    {isSaved ? (
+                      <div className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#223326] border border-[#37543E] text-[#8AC49A] text-xs md:text-sm font-medium">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Đã lưu ngoại tuyến (IndexedDB)</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadCurriculumPack(pack)}
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#4A6B53] hover:bg-[#3f5c47] text-white text-xs md:text-sm font-medium transition"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Tải gói về IndexedDB</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => openInAppNaverLookup(pack.title)}
+                      className="px-3 py-2.5 rounded-xl bg-[#1E221F] border border-[#343935] text-xs text-[#C4B0DC] hover:border-[#9D84B7]"
+                      title="Tra cứu bộ này trên NAVER ngay trên web"
+                    >
+                      NAVER
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          TAB 2: SỔ TAY TỪ VỰNG & THƯ MỤC TỪ VỰNG RIÊNG CỦA NGƯỜI ĐỌC
+      ==================================================================== */}
+      {activeTab === 'notebook' && (
+        <div className="max-w-6xl mx-auto mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* CỘT TRÁI: TẠO & QUẢN LÝ THƯ MỤC TỪ VỰNG RIÊNG */}
+          <aside className="rounded-2xl bg-[#161917] border border-[#2A2E2B] p-4 space-y-4 h-fit">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-serif font-semibold text-[#F4EFE6]">
+                Thư Mục Từ Vựng Riêng
+              </h3>
+              <Layers className="w-4 h-4 text-[#9D84B7]" />
+            </div>
+
+            {/* Form tạo thư mục mới */}
+            <form onSubmit={handleCreateFolder} className="space-y-2">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Tên thư mục mới..."
+                  className="flex-1 px-3 py-2 rounded-lg text-xs bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#9D84B7]"
+                />
+                <input
+                  type="color"
+                  value={newFolderColor}
+                  onChange={(e) => setNewFolderColor(e.target.value)}
+                  title="Chọn màu nhãn thư mục"
+                  className="w-9 h-9 rounded-lg bg-[#121413] border border-[#343935] cursor-pointer p-1"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium bg-[#253529] border border-[#4A6B53] text-[#A3C9A8] hover:bg-[#2f4434] transition"
+              >
+                <FolderPlus className="w-3.5 h-3.5" />
+                <span>Tạo thư mục riêng</span>
+              </button>
+            </form>
+
+            {/* Danh sách thư mục */}
+            <nav className="space-y-1 pt-2 border-t border-[#262A27]">
+              <button
+                type="button"
+                onClick={() => setSelectedFolderId('all')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs md:text-sm transition ${
+                  selectedFolderId === 'all'
+                    ? 'bg-[#4A6B53] text-white font-medium'
+                    : 'text-[#B8BDB9] hover:bg-[#1E221F]'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Folder className="w-4 h-4" />
+                  <span>Tất cả thư mục</span>
+                </span>
+                <span className="text-xs opacity-80">{records.length}</span>
+              </button>
+
+              {folders.map((folder, index) => {
+                const count = records.filter((r) => r.folderId === folder.id).length;
+                return (
+                  <div key={folder.id} className="flex items-center gap-1 group">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedFolderId(folder.id)}
+                      className={`flex-1 flex items-center justify-between px-3 py-2 rounded-lg text-xs md:text-sm transition ${
+                        selectedFolderId === folder.id
+                          ? 'bg-[#4A6B53] text-white font-medium'
+                          : 'text-[#B8BDB9] hover:bg-[#1E221F]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <Folder className="w-4 h-4 shrink-0" style={{ color: folder.color }} />
+                        <span className="truncate">{folder.name}</span>
+                      </span>
+                      <span className="text-xs opacity-80">{count}</span>
+                    </button>
+
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                        className="p-1.5 text-[#8E9490] hover:text-red-400 opacity-0 group-hover:opacity-100 transition"
+                        title="Xóa thư mục"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* CỘT PHẢI: DANH SÁCH TỪ VỰNG & NGỮ PHÁP TRONG THƯ MỤC */}
+          <main className="md:col-span-3 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#161917] border border-[#2A2E2B] p-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#8E9490]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm từ vựng, ngữ pháp hoặc nghĩa tiếng Việt..."
+                  className="w-full pl-9 pr-3 py-2 rounded-lg text-xs md:text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#4A6B53]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as 'all' | 'vocab' | 'grammar')}
+                  className="px-3 py-2 rounded-lg text-xs bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                >
+                  <option value="all">Tất cả loại</option>
+                  <option value="vocab">Chỉ Từ vựng</option>
+                  <option value="grammar">Chỉ Ngữ pháp</option>
+                </select>
+
+                <input
+                  ref={fileImportRef}
+                  type="file"
+                  accept=".csv,.json"
+                  onChange={handleImportExternalFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileImportRef.current?.click()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-[#1E221F] border border-[#343935] text-[#D4D7D5] hover:border-[#9D84B7]"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#9D84B7]" />
+                  <span>Nạp file ngoài</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Lưới thẻ từ vựng & ngữ pháp */}
+            {filteredRecords.length === 0 ? (
+              <div className="rounded-2xl bg-[#161917] border border-[#2A2E2B] p-10 text-center space-y-3">
+                <BookOpen className="w-8 h-8 mx-auto text-[#8E9490]" />
+                <p className="text-sm text-[#9CA19E]">
+                  Thư mục này chưa có mục nào. Nhấn nút <strong className="text-[#8AC49A]">+ Thêm từ vựng / ngữ pháp</strong> ở góc trên để tự bổ sung.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {filteredRecords.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl bg-[#161917] border border-[#2A2E2B] p-4 flex flex-col justify-between space-y-3 hover:border-[#4A6B53]/70 transition"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                            item.entryType === 'grammar'
+                              ? 'bg-[#2D2536] text-[#C4B0DC]'
+                              : 'bg-[#223326] text-[#8AC49A]'
+                          }`}
+                        >
+                          {item.entryType === 'grammar' ? 'Ngữ pháp' : item.pos}
+                        </span>
+
+                        {/* Nút tra cứu NAVER trực tiếp ngay trên web */}
+                        <button
+                          type="button"
+                          onClick={() => openInAppNaverLookup(item.lemma || item.term)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#1E221F] border border-[#343935] text-[#C4B0DC] hover:border-[#9D84B7]"
+                        >
+                          <Globe className="w-3 h-3" />
+                          <span>Tra NAVER</span>
+                        </button>
+                      </div>
+
+                      <h4 className="mt-2 text-lg font-bold text-[#F4EFE6]">{item.term}</h4>
+                      {item.pronunciation && (
+                        <p className="text-xs text-[#8E9490]">[{item.pronunciation}]</p>
+                      )}
+                      <p className="mt-1.5 text-sm font-medium text-[#A3C9A8]">{item.meaning}</p>
+
+                      {item.grammarExplanation && (
+                        <p className="mt-2 text-xs text-[#C4B0DC] bg-[#1D1A22] p-2 rounded-lg">
+                          {item.grammarExplanation}
+                        </p>
+                      )}
+
+                      {item.exampleKo && (
+                        <div className="mt-2.5 pl-2.5 border-l-2 border-[#4A6B53] text-xs space-y-0.5">
+                          <p className="text-[#E2E5E3]">{item.exampleKo}</p>
+                          {item.exampleVi && <p className="text-[#8E9490]">{item.exampleVi}</p>}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-[#262A27] flex items-center justify-between text-[11px] text-[#8E9490]">
+                      <span>{item.packLevel || 'Cá nhân'}</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await vocabDB.vocabRecords.delete(item.id);
+                          await refreshAllData();
+                        }}
+                        className="text-red-400/75 hover:text-red-400 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" /> Xóa
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </main>
+        </div>
+      )}
+
+      {/* ====================================================================
+          NÚT DẤU "+" NỔI GÓC DƯỚI PHẢI (THUẬN TIỆN TRÊN ANDROID & DESKTOP)
+      ==================================================================== */}
+      <button
+        type="button"
+        onClick={() => setIsAddModalOpen(true)}
+        title="Bổ sung từ vựng hoặc ngữ pháp mới"
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-[#4A6B53] hover:bg-[#3d5945] text-white shadow-2xl shadow-black/70 flex items-center justify-center border border-[#7BA386]/40 transition transform hover:scale-105"
+      >
+        <Plus className="w-7 h-7 stroke-[2.5]" />
+      </button>
+
+      {/* ====================================================================
+          MODAL DẤU "+" : NGƯỜI ĐỌC TỰ BỔ SUNG TỪ VỰNG / NGỮ PHÁP & CHỌN THƯ MỤC
+      ==================================================================== */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={handleSaveNewEntry}
+            className="w-full max-w-xl rounded-2xl bg-[#181B19] border border-[#343935] shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-5 py-4 bg-[#131514] border-b border-[#2A2E2B]">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-[#8AC49A]" />
+                <h3 className="text-base md:text-lg font-serif font-semibold text-[#F4EFE6]">
+                  Bổ Sung Từ Vựng / Ngữ Pháp Mới
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-1 rounded-lg text-[#8E9490] hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Chọn loại: Từ vựng hay Ngữ pháp */}
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[#121413] border border-[#2A2E2B]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormEntryType('vocab');
+                    setFormPos('Động từ');
+                  }}
+                  className={`py-2 rounded-lg text-xs font-medium transition ${
+                    formEntryType === 'vocab'
+                      ? 'bg-[#4A6B53] text-white'
+                      : 'text-[#9CA19E] hover:text-white'
+                  }`}
+                >
+                  Từ vựng tiếng Hàn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormEntryType('grammar');
+                    setFormPos('Ngữ pháp');
+                  }}
+                  className={`py-2 rounded-lg text-xs font-medium transition ${
+                    formEntryType === 'grammar'
+                      ? 'bg-[#9D84B7] text-[#121413] font-semibold'
+                      : 'text-[#9CA19E] hover:text-white'
+                  }`}
+                >
+                  Cấu trúc Ngữ pháp
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">
+                    {formEntryType === 'vocab' ? 'Từ tiếng Hàn *' : 'Cấu trúc ngữ pháp *'}
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={formTerm}
+                    onChange={(e) => setFormTerm(e.target.value)}
+                    placeholder={formEntryType === 'vocab' ? 'VD: 아련하다' : 'VD: -(으)ㄹ 뻔하다'}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#4A6B53]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Dạng nguyên thể / Gốc</label>
+                  <input
+                    type="text"
+                    value={formLemma}
+                    onChange={(e) => setFormLemma(e.target.value)}
+                    placeholder="VD: 아련하다"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#9CA19E] mb-1">Nghĩa tiếng Việt *</label>
+                <input
+                  required
+                  type="text"
+                  value={formMeaning}
+                  onChange={(e) => setFormMeaning(e.target.value)}
+                  placeholder="Nhập nghĩa tiếng Việt chính xác..."
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#4A6B53]"
+                />
+              </div>
+
+              {/* CHỌN THƯ MỤC TỪ VỰNG RIÊNG & CẤP ĐỘ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Lưu vào thư mục riêng</label>
+                  <select
+                    value={formFolderId}
+                    onChange={(e) => setFormFolderId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                  >
+                    {folders.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Cấp độ (NAVER)</label>
+                  <select
+                    value={formLevel}
+                    onChange={(e) => setFormLevel(e.target.value as StudyLevel)}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                  >
+                    <option value="so-cap-1">Sơ cấp 1</option>
+                    <option value="so-cap-2">Sơ cấp 2</option>
+                    <option value="trung-cap-3">Trung cấp 3</option>
+                    <option value="trung-cap-4">Trung cấp 4</option>
+                    <option value="van-hoc">Văn học & Tiểu thuyết</option>
+                    <option value="custom">Tùy chỉnh</option>
+                  </select>
+                </div>
+              </div>
+
+              {formEntryType === 'grammar' && (
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Cách chia & Lưu ý ngữ pháp</label>
+                  <textarea
+                    rows={2}
+                    value={formGrammarNote}
+                    onChange={(e) => setFormGrammarNote(e.target.value)}
+                    placeholder="Giải thích cách kết hợp động từ/tính từ..."
+                    className="w-full px-3 py-2 rounded-lg text-xs bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Ví dụ tiếng Hàn</label>
+                  <input
+                    type="text"
+                    value={formExampleKo}
+                    onChange={(e) => setFormExampleKo(e.target.value)}
+                    placeholder="Câu ví dụ tiếng Hàn..."
+                    className="w-full px-3 py-2 rounded-lg text-xs bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#9CA19E] mb-1">Dịch ví dụ tiếng Việt</label>
+                  <input
+                    type="text"
+                    value={formExampleVi}
+                    onChange={(e) => setFormExampleVi(e.target.value)}
+                    placeholder="Bản dịch câu ví dụ..."
+                    className="w-full px-3 py-2 rounded-lg text-xs bg-[#121413] border border-[#343935] text-[#F4EFE6]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-4 bg-[#131514] border-t border-[#2A2E2B]">
+              {formTerm.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => openInAppNaverLookup(formTerm)}
+                  className="flex items-center gap-1.5 text-xs text-[#C4B0DC] hover:underline"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Kiểm tra "{formTerm}" trên NAVER</span>
+                </button>
+              ) : (
+                <span />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-xs bg-[#1E221F] text-[#9CA19E]"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-lg text-xs font-semibold bg-[#4A6B53] text-white hover:bg-[#3e5b46]"
+                >
+                  Lưu vào Sổ Tay
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ====================================================================
+          NGĂN TRA CỨU NAVER TRỰC TIẾP NGAY TRÊN WEB (KHÔNG CHUYỂN TAB)
+      ==================================================================== */}
+      {naverDrawerQuery !== null && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-[#161917] border-l border-[#343935] shadow-2xl flex flex-col">
+          {/* Thanh tiêu đề cửa sổ NAVER nhúng */}
+          <div className="flex items-center justify-between px-4 py-3 bg-[#121413] border-b border-[#2A2E2B]">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded text-xs font-bold bg-[#03C75A] text-black">
+                NAVER
+              </span>
+              <span className="text-sm font-medium text-[#F4EFE6] truncate max-w-[200px]">
+                Từ điển Hàn - Việt: {naverDrawerQuery}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <a
+                href={`https://korean.dict.naver.com/kovidict/#/search?query=${encodeURIComponent(
+                  naverDrawerQuery
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs bg-[#1E221F] text-[#B8BDB9] hover:text-white"
+                title="Mở trang gốc NAVER nếu trình duyệt chặn nhúng"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Mở mục gốc</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setNaverDrawerQuery(null)}
+                className="p-1.5 rounded-lg bg-[#1E221F] text-[#9CA19E] hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Ô tìm kiếm trực tiếp từ khóa NAVER ngay trong ngăn kéo */}
+          <div className="p-3 bg-[#191C1A] border-b border-[#2A2E2B] flex gap-2">
+            <input
+              type="text"
+              value={naverDrawerQuery}
+              onChange={(e) => setNaverDrawerQuery(e.target.value)}
+              placeholder="Gõ từ vựng hoặc ngữ pháp cần tra trên NAVER..."
+              className="flex-1 px-3 py-1.5 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#03C75A]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setFormTerm(naverDrawerQuery);
+                setIsAddModalOpen(true);
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#4A6B53] text-white"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Lưu từ này</span>
+            </button>
+          </div>
+
+          {/* Thông báo kỹ thuật về chính sách X-Frame-Options của NAVER & Iframe nhúng */}
+          {naverIframeBlockedHint && (
+            <div className="px-4 py-2.5 bg-[#2A2318] border-b border-[#5C4033] text-xs text-[#E5C99B] flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-[#E5C99B]" />
+              <span>
+                Máy chủ NAVER có thể chặn nhúng trực tiếp trên một số trình duyệt. Bạn có thể nhấn{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const w = 480;
+                    const h = 680;
+                    const left = window.screen.width - w - 24;
+                    window.open(
+                      `https://korean.dict.naver.com/kovidict/#/search?query=${encodeURIComponent(
+                        naverDrawerQuery
+                      )}`,
+                      'NaverInAppPopup',
+                      `width=${w},height=${h},left=${left},top=80,resizable=yes,scrollbars=yes`
+                    );
+                  }}
+                  className="underline font-semibold text-white"
+                >
+                  Cửa sổ nổi mini tại chỗ
+                </button>{' '}
+                để xem ngay cạnh trang đọc mà không chuyển tab.
+              </span>
+            </div>
+          )}
+
+          {/* Khung hiển thị từ điển NAVER Hàn - Việt ngay bên trong ứng dụng */}
+          <div className="flex-1 relative bg-white">
+            <iframe
+              key={naverDrawerQuery}
+              src={`https://korean.dict.naver.com/kovidict/#/search?query=${encodeURIComponent(
+                naverDrawerQuery
+              )}`}
+              title="NAVER Korean-Vietnamese Dictionary"
+              className="w-full h-full border-0"
+              onLoad={() => setNaverIframeBlockedHint(true)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default VocabAndOfflineHub;
+                

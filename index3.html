@@ -1,0 +1,803 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Dexie, { Table } from 'dexie';
+import {
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
+  Download,
+  FolderPlus,
+  Database,
+  Sparkles,
+  BookMarked,
+  Layers,
+  X,
+  RefreshCw,
+} from 'lucide-react';
+
+// ============================================================================
+// 1. ĐỊNH NGHĨA KIỂU DỮ LIỆU & INDEXEDDB (TƯƠNG THÍCH VỚI HỆ THỐNG HIỆN TẠI)
+// ============================================================================
+
+export interface OfflineDictionaryEntry {
+  id: string;
+  packId: string;
+  word: string;           // Từ tiếng Hàn gốc (VD: 바라보다)
+  lemma: string;          // Dạng nguyên thể (VD: 바라보다)
+  pronunciation: string;  // Phiên âm (VD: [바라보다])
+  meaning: string;        // Nghĩa tiếng Việt (VD: ngắm nhìn, trông mong)
+  pos: string;            // Từ loại (VD: Động từ, Tính từ, Danh từ...)
+  hanja?: string;         // Hán Hàn nếu có (VD: 望見)
+  grammar?: string;       // Ngữ pháp / cấu tạo từ
+  exampleKo?: string;     // Ví dụ tiếng Hàn
+  exampleVi?: string;     // Bản dịch ví dụ
+  synonyms?: string[];    // Từ đồng nghĩa
+  antonyms?: string[];    // Từ trái nghĩa
+  createdAt: number;
+}
+
+export interface OfflineDictionaryPack {
+  id: string;
+  title: string;
+  category: string;       // VD: 'Văn học', 'Sơ cấp', 'Trung - Cao cấp', 'Tùy chỉnh'
+  description: string;
+  entryCount: number;
+  sourceFileName: string;
+  isCustom: boolean;
+  updatedAt: number;
+}
+
+export interface NotebookVocabEntry {
+  id: string;
+  userId: string;
+  folderId: string;
+  word: string;
+  lemma: string;
+  pronunciation: string;
+  meaning: string;
+  pos: string;
+  grammar?: string;
+  exampleKo?: string;
+  exampleVi?: string;
+  sourceDocTitle?: string;
+  personalNote?: string;
+  masteryLevel: 1 | 2 | 3 | 4 | 5;
+  createdAt: number;
+  updatedAt: number;
+}
+
+class OfflineVocabPackDB extends Dexie {
+  dictionaryPacks!: Table<OfflineDictionaryPack, string>;
+  dictionaryEntries!: Table<OfflineDictionaryEntry, string>;
+  notebookItems!: Table<NotebookVocabEntry, string>;
+
+  constructor() {
+    super('DiAnTuHa_OfflinePacks_v2');
+    this.version(1).stores({
+      dictionaryPacks: 'id, title, category, isCustom, updatedAt',
+      dictionaryEntries: 'id, packId, word, lemma, pos',
+      notebookItems: 'id, userId, folderId, word, lemma, createdAt',
+    });
+  }
+}
+
+const offlineDB = new OfflineVocabPackDB();
+
+// ============================================================================
+// 2. BỘ PHÂN TÍCH ĐA ĐỊNH DẠNG FILE TỪ VỰNG BÊN NGOÀI (JSON / CSV / TXT)
+// ============================================================================
+
+interface RawParsedRow {
+  word: string;
+  lemma: string;
+  pronunciation: string;
+  meaning: string;
+  pos: string;
+  hanja?: string;
+  grammar?: string;
+  exampleKo?: string;
+  exampleVi?: string;
+  synonyms?: string[];
+  antonyms?: string[];
+}
+
+function parseCSVLine(line: string, delimiter = ','): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"' && inQuotes && nextChar === '"') {
+      current += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseExternalVocabContent(fileName: string, rawText: string): RawParsedRow[] {
+  const cleanText = rawText.replace(/^\uFEFF/, '').trim();
+  if (!cleanText) {
+    throw new Error('Tệp tin rỗng, không có dữ liệu từ vựng.');
+  }
+
+  const lowerName = fileName.toLowerCase();
+
+  // TRƯỜNG HỢP 1: FILE JSON
+  if (lowerName.endsWith('.json') || cleanText.startsWith('[') || cleanText.startsWith('{')) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(cleanText);
+    } catch {
+      throw new Error('File JSON sai cú pháp. Hãy kiểm tra lại dấu ngoặc hoặc dấu phẩy.');
+    }
+
+    const list = Array.isArray(parsed)
+      ? parsed
+      : typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { entries?: unknown }).entries)
+      ? (parsed as { entries: unknown[] }).entries
+      : null;
+
+    if (!list) {
+      throw new Error('File JSON phải là một mảng danh sách [...] hoặc object có trường "entries": [...].');
+    }
+
+    const rows: RawParsedRow[] = [];
+    for (const item of list) {
+      if (typeof item !== 'object' || item === null) continue;
+      const obj = item as Record<string, unknown>;
+
+      const word = String(obj.word || obj.korean || obj.hangul || obj.term || '').trim();
+      const meaning = String(obj.meaning || obj.vietnamese || obj.vi || obj.definition || '').trim();
+      if (!word || !meaning) continue;
+
+      rows.push({
+        word,
+        lemma: String(obj.lemma || obj.baseForm || word).trim(),
+        pronunciation: String(obj.pronunciation || obj.phonetic || '').trim(),
+        meaning,
+        pos: String(obj.pos || obj.partOfSpeech || obj.type || 'Từ vựng').trim(),
+        hanja: obj.hanja ? String(obj.hanja).trim() : undefined,
+        grammar: obj.grammar ? String(obj.grammar).trim() : undefined,
+        exampleKo: obj.exampleKo || obj.example ? String(obj.exampleKo || obj.example).trim() : undefined,
+        exampleVi: obj.exampleVi || obj.exampleTranslation ? String(obj.exampleVi || obj.exampleTranslation).trim() : undefined,
+        synonyms: Array.isArray(obj.synonyms) ? obj.synonyms.map(String) : undefined,
+        antonyms: Array.isArray(obj.antonyms) ? obj.antonyms.map(String) : undefined,
+      });
+    }
+    return rows;
+  }
+
+  // TRƯỜNG HỢP 2: FILE CSV / TSV / TXT
+  const lines = cleanText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  // Tự động nhận diện dấu phân cách: Tab (\t), dấu gạch đứng (|), chấm phẩy (;), hoặc phẩy (,)
+  const sampleLine = lines[0];
+  let delimiter = ',';
+  if (sampleLine.includes('\t')) delimiter = '\t';
+  else if (sampleLine.includes('|')) delimiter = '|';
+  else if (sampleLine.includes(';') && !sampleLine.includes(',')) delimiter = ';';
+
+  // Kiểm tra dòng đầu tiên có phải tiêu đề (header) không
+  const firstCols = parseCSVLine(lines[0], delimiter).map((c) => c.toLowerCase());
+  const headerKeywords = ['word', 'korean', 'hangul', 'từ', 'tu vung', 'nghĩa', 'meaning', 'vietnamese'];
+  const hasHeader = firstCols.some((col) => headerKeywords.some((kw) => col.includes(kw)));
+
+  const startIdx = hasHeader ? 1 : 0;
+  const rows: RawParsedRow[] = [];
+
+  for (let i = startIdx; i < lines.length; i++) {
+    let cols = parseCSVLine(lines[i], delimiter);
+
+    // Hỗ trợ định dạng TXT ghi chú nhanh dạng: "바라보다 : ngắm nhìn" hoặc "바라보다 - ngắm nhìn"
+    if (cols.length === 1 && (lines[i].includes(' : ') || lines[i].includes(' - '))) {
+      const splitPair = lines[i].split(/\s+(?::|-)\s+/);
+      if (splitPair.length >= 2) {
+        cols = [splitPair[0].trim(), splitPair[0].trim(), '', splitPair.slice(1).join(' - ').trim()];
+      }
+    }
+
+    if (cols.length < 2) continue;
+
+    // Nếu chỉ có 2 cột: [Từ tiếng Hàn, Nghĩa tiếng Việt]
+    if (cols.length === 2) {
+      const [word, meaning] = cols;
+      if (!word || !meaning) continue;
+      rows.push({
+        word,
+        lemma: word,
+        pronunciation: '',
+        meaning,
+        pos: 'Từ vựng',
+      });
+      continue;
+    }
+
+    // Nếu có >= 3 cột theo chuẩn:
+    // Cột 0: Từ tiếng Hàn | Cột 1: Nguyên thể (hoặc Nghĩa nếu chỉ có 3 cột) | Cột 2: Phiên âm | Cột 3: Nghĩa Việt | Cột 4: Từ loại | Cột 5: Hán Hàn | Cột 6: Ví dụ Hàn | Cột 7: Dịch ví dụ | Cột 8: Ngữ pháp
+    if (cols.length === 3) {
+      const [word, col1, col2] = cols;
+      rows.push({
+        word,
+        lemma: word,
+        pronunciation: col1.startsWith('[') ? col1 : '',
+        meaning: col1.startsWith('[') ? col2 : col1,
+        pos: col1.startsWith('[') ? 'Từ vựng' : col2 || 'Từ vựng',
+      });
+      continue;
+    }
+
+    const word = cols[0] || '';
+    const lemma = cols[1] || word;
+    const pronunciation = cols[2] || '';
+    const meaning = cols[3] || '';
+    if (!word || !meaning) continue;
+
+    rows.push({
+      word,
+      lemma,
+      pronunciation,
+      meaning,
+      pos: cols[4] || 'Từ vựng',
+      hanja: cols[5] || undefined,
+      exampleKo: cols[6] || undefined,
+      exampleVi: cols[7] || undefined,
+      grammar: cols[8] || undefined,
+    });
+  }
+
+  return rows;
+}
+
+// ============================================================================
+// 3. COMPONENT GIAO DIỆN CHÍNH (DARK ACADEMIA × BOTANICAL GARDEN)
+// ============================================================================
+
+interface CustomVocabPackImporterProps {
+  userId?: string;
+  targetFolderId?: string;
+  onPackUpdated?: () => void; // Callback để component cha reload lại số đếm Sổ Tay Từ Vựng
+}
+
+export const CustomVocabPackImporter: React.FC<CustomVocabPackImporterProps> = ({
+  userId = 'local_default_user',
+  targetFolderId = 'default',
+  onPackUpdated,
+}) => {
+  const [customPacks, setCustomPacks] = useState<OfflineDictionaryPack[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State cho file đang chuẩn bị nhập
+  const [selectedFileName, setSelectedFileName] = useState('');
+  const [packTitle, setPackTitle] = useState('');
+  const [packCategory, setPackCategory] = useState('Tùy chỉnh');
+  const [packDescription, setPackDescription] = useState('');
+  const [importDestination, setImportDestination] = useState<'offline_pack' | 'notebook' | 'both'>('both');
+  const [previewRows, setPreviewRows] = useState<RawParsedRow[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const loadCustomPacks = useCallback(async () => {
+    const packs = await offlineDB.dictionaryPacks.orderBy('updatedAt').reverse().toArray();
+    setCustomPacks(packs);
+  }, []);
+
+  useEffect(() => {
+    loadCustomPacks();
+  }, [loadCustomPacks]);
+
+  // Xử lý đọc file từ input hoặc kéo thả
+  const processUploadedFile = async (file: File) => {
+    setErrorMessage(null);
+    try {
+      const text = await file.text();
+      const parsedRows = parseExternalVocabContent(file.name, text);
+
+      if (parsedRows.length === 0) {
+        throw new Error(
+          'Không trích xuất được từ vựng hợp lệ nào. Hãy kiểm tra lại định dạng cột (Từ tiếng Hàn và Nghĩa tiếng Việt).'
+        );
+      }
+
+      const cleanBaseName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ');
+      setSelectedFileName(file.name);
+      setPackTitle(cleanBaseName);
+      setPackDescription(`Bộ từ vựng nhập từ tệp "${file.name}" (${parsedRows.length} mục từ).`);
+      setPreviewRows(parsedRows);
+      setIsModalOpen(true);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Không thể đọc tệp từ vựng.');
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processUploadedFile(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processUploadedFile(file);
+    }
+  };
+
+  // Lưu dữ liệu đã xem trước vào IndexedDB
+  const handleConfirmSave = async () => {
+    if (!packTitle.trim() || previewRows.length === 0) return;
+    setIsSaving(true);
+    setErrorMessage(null);
+
+    try {
+      const now = Date.now();
+      const packId = `custom_pack_${crypto.randomUUID()}`;
+
+      // 1. Lưu vào Kho Gói Từ Điển Ngoại Tuyến (IndexedDB)
+      if (importDestination === 'offline_pack' || importDestination === 'both') {
+        const newPack: OfflineDictionaryPack = {
+          id: packId,
+          title: packTitle.trim(),
+          category: packCategory.trim() || 'Tùy chỉnh',
+          description: packDescription.trim() || `Gói từ vựng ngoại tuyến (${previewRows.length} từ).`,
+          entryCount: previewRows.length,
+          sourceFileName: selectedFileName,
+          isCustom: true,
+          updatedAt: now,
+        };
+
+        const dictEntries: OfflineDictionaryEntry[] = previewRows.map((row) => ({
+          id: crypto.randomUUID(),
+          packId,
+          word: row.word,
+          lemma: row.lemma || row.word,
+          pronunciation: row.pronunciation,
+          meaning: row.meaning,
+          pos: row.pos,
+          hanja: row.hanja,
+          grammar: row.grammar,
+          exampleKo: row.exampleKo,
+          exampleVi: row.exampleVi,
+          synonyms: row.synonyms,
+          antonyms: row.antonyms,
+          createdAt: now,
+        }));
+
+        await offlineDB.transaction('rw', offlineDB.dictionaryPacks, offlineDB.dictionaryEntries, async () => {
+          await offlineDB.dictionaryPacks.add(newPack);
+          await offlineDB.dictionaryEntries.bulkAdd(dictEntries);
+        });
+      }
+
+      // 2. Lưu vào Sổ Tay Từ Vựng cá nhân (tránh trùng từ đã có)
+      if (importDestination === 'notebook' || importDestination === 'both') {
+        const existingWords = new Set(
+          (await offlineDB.notebookItems.where('userId').equals(userId).toArray()).map((i) => i.word)
+        );
+
+        const notebookRecords: NotebookVocabEntry[] = previewRows
+          .filter((row) => !existingWords.has(row.word))
+          .map((row) => ({
+            id: crypto.randomUUID(),
+            userId,
+            folderId: targetFolderId,
+            word: row.word,
+            lemma: row.lemma || row.word,
+            pronunciation: row.pronunciation,
+            meaning: row.meaning,
+            pos: row.pos,
+            grammar: row.grammar,
+            exampleKo: row.exampleKo,
+            exampleVi: row.exampleVi,
+            sourceDocTitle: packTitle.trim(),
+            personalNote: row.hanja ? `Hán Hàn: ${row.hanja}` : undefined,
+            masteryLevel: 1,
+            createdAt: now,
+            updatedAt: now,
+          }));
+
+        if (notebookRecords.length > 0) {
+          await offlineDB.notebookItems.bulkAdd(notebookRecords);
+        }
+      }
+
+      await loadCustomPacks();
+      onPackUpdated?.();
+      setIsModalOpen(false);
+      setPreviewRows([]);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Lỗi khi lưu dữ liệu vào IndexedDB.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Xóa một gói từ điển tùy chỉnh khỏi IndexedDB
+  const handleDeletePack = async (packId: string, title: string) => {
+    if (!window.confirm(`Xóa gói từ vựng "${title}" khỏi IndexedDB trên thiết bị này?`)) return;
+    await offlineDB.transaction('rw', offlineDB.dictionaryPacks, offlineDB.dictionaryEntries, async () => {
+      await offlineDB.dictionaryPacks.delete(packId);
+      await offlineDB.dictionaryEntries.where('packId').equals(packId).delete();
+    });
+    await loadCustomPacks();
+  };
+
+  // Tải file mẫu chuẩn để người dùng dễ biên soạn từ bên ngoài
+  const downloadTemplateFile = (type: 'csv' | 'json') => {
+    if (type === 'json') {
+      const sampleJson = [
+        {
+          word: '바라보다',
+          lemma: '바라보다',
+          pronunciation: '바라보다',
+          meaning: 'ngắm nhìn, trông mong, hướng về',
+          pos: 'Động từ',
+          hanja: '',
+          grammar: '바라다 + 보다',
+          exampleKo: '그는 아무 말 없이 창밖을 바라보고 있었다.',
+          exampleVi: 'Anh ấy lặng lẽ nhìn ra ngoài cửa sổ.',
+        },
+        {
+          word: '아련하다',
+          lemma: '아련하다',
+          pronunciation: '아련하다',
+          meaning: 'mơ hồ, thoang thoảng, man mác (ký ức)',
+          pos: 'Tính từ',
+          hanja: '',
+          grammar: 'Từ vựng văn học',
+          exampleKo: '어린 시절의 기억이 아련하게 떠올랐다.',
+          exampleVi: 'Ký ức thời thơ ấu chợt ùa về man mác.',
+        },
+      ];
+      const blob = new Blob([JSON.stringify(sampleJson, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mau_tu_vung_di_an_tu_ha.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const csvLines = [
+        'Từ tiếng Hàn,Nguyên thể,Phiên âm,Nghĩa tiếng Việt,Từ loại,Hán Hàn,Ví dụ tiếng Hàn,Dịch ví dụ,Ngữ pháp',
+        '"바라보다","바라보다","바라보다","ngắm nhìn, trông mong","Động từ","","그는 아무 말 없이 창밖을 바라보고 있었다.","Anh ấy lặng lẽ nhìn ra ngoài cửa sổ.","바라다 + 보다"',
+        '"고독","고독","고독","sự cô độc, lẻ loi","Danh từ","孤獨","고독한 밤을 견디다.","Chịu đựng đêm cô độc.","Hán Hàn"',
+      ];
+      const blob = new Blob(['\uFEFF' + csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mau_tu_vung_di_an_tu_ha.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  return (
+    <section className="mt-6 rounded-2xl bg-[#161917] border border-[#2A2E2B] p-5 md:p-6 text-[#F4EFE6]">
+      {/* TIÊU ĐỀ & NÚT TẢI FILE MẪU */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#2A2E2B]">
+        <div>
+          <div className="flex items-center gap-2">
+            <FolderPlus className="w-5 h-5 text-[#9D84B7]" />
+            <h3 className="text-lg md:text-xl font-serif font-semibold text-[#F4EFE6]">
+              Bổ Sung Gói Từ Vựng Cá Nhân Từ Bên Ngoài
+            </h3>
+          </div>
+          <p className="text-xs md:text-sm text-[#A0A5A1] mt-1">
+            Nạp các bộ từ vựng bạn tự soạn (CSV, JSON, TXT) vào IndexedDB để tra cứu ngoại tuyến khi đọc truyện hoặc lưu thẳng vào Sổ Tay Từ Vựng.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadTemplateFile('csv')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-[#1E221F] border border-[#343935] text-[#D4D7D5] hover:border-[#4A6B53] transition"
+          >
+            <Download className="w-3.5 h-3.5 text-[#7BA386]" />
+            <span>Tải mẫu CSV</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => downloadTemplateFile('json')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-[#1E221F] border border-[#343935] text-[#D4D7D5] hover:border-[#9D84B7] transition"
+          >
+            <Download className="w-3.5 h-3.5 text-[#9D84B7]" />
+            <span>Tải mẫu JSON</span>
+          </button>
+        </div>
+      </div>
+
+      {/* VÙNG KÉO THẢ / CHỌN FILE TỪ THIẾT BỊ */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`mt-5 cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition ${
+          isDragging
+            ? 'border-[#9D84B7] bg-[#9D84B7]/10'
+            : 'border-[#343935] bg-[#1A1D1B] hover:border-[#4A6B53] hover:bg-[#1E2320]'
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.json,.txt,.tsv"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <Upload className="w-8 h-8 mx-auto text-[#7BA386] mb-2" />
+        <p className="text-sm md:text-base font-medium text-[#F4EFE6]">
+          Chạm để chọn file từ vựng hoặc kéo thả tệp vào đây
+        </p>
+        <p className="text-xs text-[#8E9490] mt-1">
+          Hỗ trợ <span className="text-[#9D84B7]">.CSV</span> (Excel/Anki),{' '}
+          <span className="text-[#9D84B7]">.JSON</span>, hoặc{' '}
+          <span className="text-[#9D84B7]">.TXT</span> (mỗi dòng dạng: <code className="text-[#A3C9A8]">từ_hàn - nghĩa_việt</code>)
+        </p>
+      </div>
+
+      {/* HIỂN THỊ THÔNG BÁO LỖI NẾU FILE KHÔNG HỢP LỆ */}
+      {errorMessage && (
+        <div className="mt-4 flex items-start gap-2.5 p-3.5 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 text-xs md:text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-400" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* DANH SÁCH CÁC GÓI TỪ VỰNG TÙY CHỈNH ĐÃ LƯU TRONG INDEXEDDB */}
+      {customPacks.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-xs uppercase tracking-wider text-[#8E9490] mb-3">
+            Các gói từ vựng cá nhân đã nạp ({customPacks.length})
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {customPacks.map((pack) => (
+              <div
+                key={pack.id}
+                className="rounded-xl bg-[#1A1D1B] border border-[#2E332F] p-4 flex flex-col justify-between space-y-4"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#32293D] text-[#C4B0DC]">
+                      {pack.category}
+                    </span>
+                    <span className="text-xs text-[#8E9490]">{pack.entryCount} mục từ</span>
+                  </div>
+
+                  <h5 className="mt-3 text-base font-semibold text-[#F4EFE6] line-clamp-1">
+                    {pack.title}
+                  </h5>
+                  <p className="mt-1 text-xs text-[#9CA19E] line-clamp-2">{pack.description}</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[#233327] border border-[#36523D] text-[#8AC49A] text-xs font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Đã lưu ngoại tuyến (IndexedDB)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePack(pack.id, pack.title)}
+                    title="Xóa gói từ vựng này"
+                    className="p-2 rounded-lg bg-[#1E221F] border border-[#343935] text-[#8E9490] hover:text-red-400 hover:border-red-800/60 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================
+          MODAL CẤU HÌNH & XEM TRƯỚC DỮ LIỆU TRƯỚC KHI LƯU VÀO INDEXEDDB
+      ======================================================================== */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-[#191C1A] border border-[#383E3A] shadow-2xl overflow-hidden">
+            {/* Header Modal */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2A2E2B] bg-[#141715]">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-[#9D84B7]" />
+                <h3 className="text-base md:text-lg font-serif font-semibold text-[#F4EFE6]">
+                  Xác Nhận Nạp Gói Từ Vựng ({previewRows.length} từ)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 rounded-lg text-[#8E9490] hover:text-white hover:bg-[#252926]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nội dung cấu hình Modal */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-[#A0A5A1] mb-1">Tên gói từ vựng</label>
+                  <input
+                    type="text"
+                    value={packTitle}
+                    onChange={(e) => setPackTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#4A6B53]"
+                    placeholder="VD: Từ vựng tiểu thuyết Bạch Dạ Hành"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[#A0A5A1] mb-1">Nhãn phân loại</label>
+                  <select
+                    value={packCategory}
+                    onChange={(e) => setPackCategory(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none focus:border-[#9D84B7]"
+                  >
+                    <option value="Tùy chỉnh">Tùy chỉnh</option>
+                    <option value="Văn học">Văn học</option>
+                    <option value="Sơ cấp">Sơ cấp</option>
+                    <option value="Trung - Cao cấp">Trung - Cao cấp</option>
+                    <option value="TOPIK I / II">TOPIK I / II</option>
+                    <option value="Thành ngữ">Thành ngữ</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#A0A5A1] mb-1">Mô tả ngắn</label>
+                <input
+                  type="text"
+                  value={packDescription}
+                  onChange={(e) => setPackDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[#121413] border border-[#343935] text-[#F4EFE6] focus:outline-none"
+                />
+              </div>
+
+              {/* CHỌN NƠI LƯU TRỮ DỮ LIỆU */}
+              <div>
+                <label className="block text-xs text-[#A0A5A1] mb-2">Nơi lưu trữ dữ liệu sau khi nạp</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setImportDestination('both')}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-left text-xs transition ${
+                      importDestination === 'both'
+                        ? 'bg-[#233327] border-[#4A6B53] text-[#F4EFE6]'
+                        : 'bg-[#121413] border-[#2E332F] text-[#9CA19E]'
+                    }`}
+                  >
+                    <Layers className="w-4 h-4 text-[#8AC49A] shrink-0" />
+                    <div>
+                      <div className="font-semibold">Cả hai (Khuyên dùng)</div>
+                      <div className="text-[11px] opacity-75">Từ điển ngoại tuyến + Sổ tay</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setImportDestination('offline_pack')}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-left text-xs transition ${
+                      importDestination === 'offline_pack'
+                        ? 'bg-[#233327] border-[#4A6B53] text-[#F4EFE6]'
+                        : 'bg-[#121413] border-[#2E332F] text-[#9CA19E]'
+                    }`}
+                  >
+                    <Database className="w-4 h-4 text-[#9D84B7] shrink-0" />
+                    <div>
+                      <div className="font-semibold">Chỉ Gói Ngoại Tuyến</div>
+                      <div className="text-[11px] opacity-75">Dùng để tra từ khi mất mạng</div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setImportDestination('notebook')}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-left text-xs transition ${
+                      importDestination === 'notebook'
+                        ? 'bg-[#233327] border-[#4A6B53] text-[#F4EFE6]'
+                        : 'bg-[#121413] border-[#2E332F] text-[#9CA19E]'
+                    }`}
+                  >
+                    <BookMarked className="w-4 h-4 text-[#D4B483] shrink-0" />
+                    <div>
+                      <div className="font-semibold">Chỉ Sổ Tay Từ Vựng</div>
+                      <div className="text-[11px] opacity-75">Thêm trực tiếp để ôn tập</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* BẢNG XEM TRƯỚC 8 MỤC TỪ ĐẦU TIÊN */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-[#A0A5A1]">
+                    Xem trước dữ liệu đã tách ({Math.min(8, previewRows.length)} / {previewRows.length} mục đầu):
+                  </span>
+                </div>
+                <div className="rounded-xl border border-[#2E332F] overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#121413] text-[#9CA19E] border-b border-[#2E332F]">
+                      <tr>
+                        <th className="px-3 py-2">Từ Hàn</th>
+                        <th className="px-3 py-2">Nguyên thể</th>
+                        <th className="px-3 py-2">Nghĩa tiếng Việt</th>
+                        <th className="px-3 py-2">Từ loại</th>
+                        <th className="px-3 py-2">Ví dụ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#252926]">
+                      {previewRows.slice(0, 8).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-[#1E221F]">
+                          <td className="px-3 py-2 font-semibold text-[#F4EFE6]">{row.word}</td>
+                          <td className="px-3 py-2 text-[#9CA19E]">{row.lemma}</td>
+                          <td className="px-3 py-2 text-[#8AC49A]">{row.meaning}</td>
+                          <td className="px-3 py-2 text-[#C4B0DC]">{row.pos}</td>
+                          <td className="px-3 py-2 text-[#8E9490] max-w-[200px] truncate">
+                            {row.exampleKo || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Modal */}
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[#2A2E2B] bg-[#141715]">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 rounded-lg text-xs md:text-sm bg-[#1E221F] text-[#A0A5A1] hover:text-white"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || !packTitle.trim()}
+                onClick={handleConfirmSave}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg text-xs md:text-sm font-medium bg-[#4A6B53] text-white hover:bg-[#3e5b46] disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                <span>Lưu {previewRows.length} từ vào IndexedDB</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+export default CustomVocabPackImporter;
+                    

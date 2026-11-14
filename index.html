@@ -1,0 +1,3820 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#141615" />
+  <meta name="description" content="Dĩ An Tư Hạ 2.2 - Nền tảng đọc truyện tiếng Hàn, học ngôn ngữ chuyên sâu và khu vườn tri thức tích hợp AI" />
+  <title>Dĩ An Tư Hạ 2.2 — Thư Viện & Khu Vườn Tri Thức Hàn Ngữ</title>
+
+  <!-- Google Fonts: Dark Academia Serif & Clean Korean Sans/Serif -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Gowun+Batang:wght@400;700&family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Mammoth.js for accurate DOCX parsing (preserves paragraphs & headings) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- JSZip for EPUB parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            charcoal: '#131514',
+            obsidian: '#1B1E1C',
+            slateDark: '#242926',
+            wood: '#4A3525',
+            woodLight: '#6B4E38',
+            moss: '#3A5A40',
+            mossLight: '#588157',
+            parchment: '#F3EFE6',
+            parchmentDark: '#E5DEC9',
+            wisteria: '#9D81BA',
+            wisteriaGlow: '#B89AD6',
+            goldLeaf: '#C8A96E'
+          },
+          fontFamily: {
+            display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+            sans: ['Inter', '"Noto Sans KR"', 'sans-serif'],
+            krSerif: ['"Gowun Batang"', '"Noto Serif KR"', 'serif'],
+            krSans: ['"Noto Sans KR"', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --bg-app: #131514;
+      --bg-panel: #1B1E1C;
+      --border-subtle: rgba(200, 169, 110, 0.18);
+      --text-main: #EDE8DC;
+      --text-muted: #9E9B90;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      font-family: 'Inter', 'Noto Sans KR', sans-serif;
+      overflow-x: hidden;
+      margin: 0;
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #131514;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3A423D;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #588157;
+    }
+
+    /* Botanical & Academia Textures */
+    .botanical-card {
+      background: linear-gradient(145deg, rgba(27, 30, 28, 0.96), rgba(20, 22, 21, 0.98));
+      border: 1px solid rgba(200, 169, 110, 0.16);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.65);
+    }
+
+    .botanical-card:hover {
+      border-color: rgba(157, 129, 186, 0.35);
+    }
+
+    /* Reader Interactive Tokens */
+    .kr-paragraph {
+      transition: background-color 0.25s ease;
+      border-radius: 8px;
+      padding: 6px 8px;
+      position: relative;
+    }
+
+    .kr-sentence {
+      border-radius: 4px;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .kr-sentence.sentence-active {
+      background-color: rgba(157, 129, 186, 0.22);
+      box-shadow: 0 0 0 2px rgba(157, 129, 186, 0.35);
+    }
+
+    .kr-word {
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 0 1px;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      display: inline;
+    }
+
+    .kr-word:hover {
+      background-color: rgba(88, 129, 87, 0.28);
+    }
+
+    .kr-word.word-active {
+      background-color: rgba(200, 169, 110, 0.38);
+      border-bottom: 2px solid #9D81BA;
+    }
+
+    .kr-word.word-saved {
+      border-bottom: 1.5px dotted #588157;
+    }
+
+    .kr-word.word-has-note {
+      background-color: rgba(157, 129, 186, 0.16);
+    }
+
+    /* Smooth View Transitions */
+    .view-section {
+      animation: fadeSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Garden Sway Animation */
+    @keyframes gentleSway {
+      0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+      50% { transform: rotate(1.5deg) translateY(-2px); }
+    }
+    .plant-sway {
+      transform-origin: bottom center;
+      animation: gentleSway 4.5s ease-in-out infinite;
+    }
+
+    /* Custom Range Slider */
+    input[type="range"] {
+      accent-color: #9D81BA;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-wisteria/40 selection:text-parchment">
+
+  <!-- Offline / Sync Status Banner -->
+  <div id="networkBanner" class="hidden bg-wood text-parchment text-xs py-1.5 px-4 text-center font-medium border-b border-goldLeaf/30 z-50">
+    <i class="fa-solid fa-wifi-slash mr-1.5 text-goldLeaf"></i>
+    Chế độ Ngoại tuyến: Đang dùng dữ liệu IndexedDB & từ điển đã tải. Thay đổi sẽ tự động đồng bộ khi có mạng.
+  </div>
+
+  <!-- Top Navigation Header (Hidden in Distraction-Free Reader Mode) -->
+  <header id="mainHeader" class="sticky top-0 z-30 bg-charcoal/95 backdrop-blur-md border-b border-goldLeaf/20 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('library')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-moss to-wood border border-goldLeaf/40 flex items-center justify-center shadow-lg">
+          <i class="fa-solid fa-seedling text-parchment text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-display text-xl sm:text-2xl font-bold tracking-wide text-parchment leading-none">
+            Dĩ An Tư Hạ <span class="text-xs font-sans font-normal text-wisteria bg-wisteria/15 px-2 py-0.5 rounded-full ml-1">2.2</span>
+          </h1>
+          <p class="text-[11px] text-stone-400 hidden sm:block mt-0.5">Thư Viện Văn Học Hàn Ngữ & Khu Vườn Tri Thức</p>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation -->
+      <nav class="hidden md:flex items-center gap-1.5 bg-obsidian p-1.5 rounded-2xl border border-goldLeaf/15">
+        <button data-nav="library" onclick="switchTab('library')" class="nav-btn px-3.5 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-book-bookmark"></i> Thư viện
+        </button>
+        <button data-nav="reader" onclick="switchTab('reader')" class="nav-btn px-3.5 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-feather-pointed"></i> Phòng đọc
+        </button>
+        <button data-nav="dictionary" onclick="switchTab('dictionary')" class="nav-btn px-3.5 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-language"></i> Từ điển & Sổ tay
+        </button>
+        <button data-nav="garden" onclick="switchTab('garden')" class="nav-btn px-3.5 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-spa"></i> Khu vườn
+        </button>
+        <button data-nav="settings" onclick="switchTab('settings')" class="nav-btn px-3.5 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2">
+          <i class="fa-solid fa-sliders"></i> Cấu hình & Hồ sơ
+        </button>
+      </nav>
+
+      <!-- Resource Counters & Sync Status -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Valid Reading Timer Pill -->
+        <div class="hidden sm:flex items-center gap-1.5 bg-obsidian border border-mossLight/30 px-2.5 py-1.5 rounded-xl text-xs" title="Thời gian đọc hợp lệ chu kỳ 5 phút">
+          <i class="fa-regular fa-clock text-mossLight"></i>
+          <span id="headerReadTimer" class="font-mono text-parchment font-semibold">00:00</span>
+        </div>
+
+        <!-- Water Drops -->
+        <button onclick="switchTab('garden')" class="flex items-center gap-1.5 bg-obsidian hover:bg-slateDark border border-sky-400/30 px-2.5 py-1.5 rounded-xl text-xs transition" title="Giọt nước (Mỗi 5 phút đọc = 1 giọt)">
+          <i class="fa-solid fa-droplet text-sky-400"></i>
+          <span id="headerWaterCount" class="font-bold text-parchment">0</span>
+        </button>
+
+        <!-- Sun Seeds -->
+        <button onclick="switchTab('garden')" class="flex items-center gap-1.5 bg-obsidian hover:bg-slateDark border border-amber-400/30 px-2.5 py-1.5 rounded-xl text-xs transition" title="Hạt mặt trời (Mỗi 10 từ tra cứu hoặc kiểm tra từ vựng)">
+          <i class="fa-solid fa-sun text-amber-400"></i>
+          <span id="headerSunCount" class="font-bold text-parchment">0</span>
+        </button>
+
+        <!-- Sync Indicator -->
+        <button onclick="manualSyncNow()" id="syncStatusBtn" class="p-2 rounded-xl bg-obsidian border border-goldLeaf/20 text-stone-300 hover:text-goldLeaf transition" title="Trạng thái đồng bộ IndexedDB & Đám mây">
+          <i id="syncIcon" class="fa-solid fa-cloud-check text-mossLight"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 pt-4 pb-24 md:pb-10">
+
+    <!-- ==================== TAB 1: THƯ VIỆN TÀI LIỆU ==================== -->
+    <section id="view-library" class="view-section space-y-6">
+      <!-- Top Hero & Upload Bar -->
+      <div class="botanical-card rounded-2xl p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div class="space-y-1.5">
+          <div class="inline-flex items-center gap-2 text-xs font-medium text-wisteria bg-wisteria/10 px-3 py-1 rounded-full border border-wisteria/25">
+            <i class="fa-solid fa-leaf"></i> Thư Viện Cá Nhân & Lưu Trữ Đa Tầng
+          </div>
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-parchment">Kho Tàng Văn Học Tiếng Hàn</h2>
+          <p class="text-sm text-stone-400 max-w-2xl">
+            Tải lên tệp <strong class="text-parchment">DOCX, TXT, EPUB</strong> (giữ nguyên thứ tự đoạn văn, chương hồi và văn bản gốc) hoặc tiếp tục tác phẩm đang đọc dở.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="cursor-pointer bg-gradient-to-r from-moss to-mossLight hover:brightness-110 text-parchment font-medium px-4 py-3 rounded-xl shadow-lg flex items-center gap-2.5 transition active:scale-95">
+            <i class="fa-solid fa-file-arrow-up text-lg"></i>
+            <span>Tải lên tài liệu</span>
+            <input type="file" id="docFileInput" accept=".docx,.txt,.epub,.pdf" class="hidden" onchange="handleDocumentUpload(event)" />
+          </label>
+          <button onclick="openPasteTextModal()" class="bg-obsidian hover:bg-slateDark border border-goldLeaf/30 text-parchment font-medium px-4 py-3 rounded-xl flex items-center gap-2 transition">
+            <i class="fa-solid fa-paste text-goldLeaf"></i>
+            <span>Dán văn bản Hàn</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search, Filter & Sort Controls -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="relative sm:col-span-2">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-sm"></i>
+          <input type="text" id="libSearchInput" oninput="renderLibrary()" placeholder="Tìm theo tên truyện, tác giả hoặc thể loại..." class="w-full bg-obsidian border border-goldLeaf/20 focus:border-wisteria rounded-xl pl-10 pr-4 py-2.5 text-sm text-parchment placeholder-stone-500 outline-none" />
+        </div>
+        <select id="libStatusFilter" onchange="renderLibrary()" class="bg-obsidian border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-sm text-parchment outline-none">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="reading">Đang đọc</option>
+          <option value="unread">Chưa đọc</option>
+          <option value="completed">Đã đọc xong</option>
+          <option value="favorite">Yêu thích ★</option>
+        </select>
+        <select id="libSortSelect" onchange="renderLibrary()" class="bg-obsidian border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-sm text-parchment outline-none">
+          <option value="recent">Sắp xếp: Mới cập nhật</option>
+          <option value="title">Sắp xếp: Tên (A-Z)</option>
+          <option value="progress">Sắp xếp: Tiến độ đọc</option>
+        </select>
+      </div>
+
+      <!-- Document Grid -->
+      <div id="libraryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated dynamically from IndexedDB + Sample Literature -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: PHÒNG ĐỌC CHUYÊN SÂU ==================== -->
+    <section id="view-reader" class="view-section hidden">
+      <!-- Compact Top Reader Toolbar (No Fixed Sidebar!) -->
+      <div id="readerTopBar" class="botanical-card rounded-2xl p-2.5 sm:p-3 mb-4 flex flex-wrap items-center justify-between gap-2 sticky top-2 z-20 backdrop-blur-md">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <button onclick="exitReaderToLibrary()" class="p-2.5 rounded-xl bg-obsidian hover:bg-slateDark text-stone-300 hover:text-parchment transition" title="Về thư viện">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <div class="min-w-0">
+            <h3 id="readerDocTitle" class="font-krSerif font-bold text-sm sm:text-base text-parchment truncate">Chưa chọn tài liệu</h3>
+            <div class="flex items-center gap-2 text-[11px] text-stone-400">
+              <span id="readerChapterInfo">Chương 1</span>
+              <span>•</span>
+              <span id="readerProgressPercent">0%</span>
+              <span>•</span>
+              <span id="readerActiveTimer" class="text-mossLight font-mono">Đang tính giờ đọc</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reader Action Buttons -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Audio Player Toggle -->
+          <button onclick="toggleMusicDrawer()" class="p-2.5 rounded-xl bg-obsidian hover:bg-slateDark border border-goldLeaf/20 text-goldLeaf transition relative" title="Trình phát nhạc đọc truyện">
+            <i class="fa-solid fa-music"></i>
+            <span id="musicPlayingDot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-mossLight animate-ping"></span>
+          </button>
+
+          <!-- Document Notes Drawer Toggle -->
+          <button onclick="toggleNotesDrawer()" class="p-2.5 rounded-xl bg-obsidian hover:bg-slateDark border border-goldLeaf/20 text-wisteria transition" title="Ghi chú trong tài liệu này">
+            <i class="fa-solid fa-note-sticky"></i>
+          </button>
+
+          <!-- Typography & Theme Customizer Toggle -->
+          <button onclick="toggleReaderSettingsPanel()" class="p-2.5 rounded-xl bg-obsidian hover:bg-slateDark border border-goldLeaf/20 text-parchment transition" title="Tùy chỉnh trang đọc (Font, màu nền, giãn dòng)">
+            <i class="fa-solid fa-font"></i>
+          </button>
+
+          <!-- Fullscreen Toggle -->
+          <button onclick="toggleDistractionFreeMode()" id="fullscreenBtn" class="p-2.5 rounded-xl bg-obsidian hover:bg-slateDark border border-goldLeaf/20 text-stone-300 transition" title="Chế độ toàn màn hình">
+            <i class="fa-solid fa-expand"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Reader Gesture Hint Strip -->
+      <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-stone-400 bg-obsidian/80 border border-goldLeaf/10 rounded-xl px-3.5 py-2 mb-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <span><strong class="text-goldLeaf">Chạm 1 từ:</strong> Từ điển phân tích hình thái</span>
+          <span><strong class="text-wisteria">Nhấn giữ câu (0.5s):</strong> Dịch & phân tích nguyên câu</span>
+          <span><strong class="text-mossLight">Kéo bôi đen:</strong> Dịch đoạn đối chiếu từng câu</span>
+        </div>
+        <span id="readerLookupsCounter" class="text-amber-400/90 font-medium">Tra cứu phiên này: 0/10</span>
+      </div>
+
+      <!-- Main Reading Canvas (Customizable Theme, Width, Font, Spacing) -->
+      <div id="readerCanvasWrapper" class="w-full flex justify-center transition-all duration-300">
+        <article id="readerPaper" class="w-full max-w-3xl rounded-2xl shadow-2xl transition-all duration-300 p-5 sm:p-10 md:p-12 border border-goldLeaf/20" style="background-color: #191C1A; color: #EDE8DC; font-family: 'Gowun Batang', serif; font-size: 19px; line-height: 1.95; text-align: left;">
+          <div id="readerContentArea" class="space-y-5">
+            <!-- Rendered interactive Korean paragraphs -->
+          </div>
+        </article>
+      </div>
+
+      <!-- Chapter Navigation Footer -->
+      <div id="readerChapterNav" class="max-w-3xl mx-auto mt-6 flex items-center justify-between gap-3">
+        <button onclick="changeChapter(-1)" id="prevChapterBtn" class="px-4 py-3 rounded-xl bg-obsidian border border-goldLeaf/20 text-sm text-parchment hover:bg-slateDark disabled:opacity-40 transition flex items-center gap-2">
+          <i class="fa-solid fa-chevron-left"></i> Phần trước
+        </button>
+        <span id="chapterFooterLabel" class="text-xs text-stone-400">Phần 1 / 1</span>
+        <button onclick="changeChapter(1)" id="nextChapterBtn" class="px-4 py-3 rounded-xl bg-obsidian border border-goldLeaf/20 text-sm text-parchment hover:bg-slateDark disabled:opacity-40 transition flex items-center gap-2">
+          Phần sau <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: TỪ ĐIỂN & SỔ TAY TỪ VỰNG ==================== -->
+    <section id="view-dictionary" class="view-section hidden space-y-6">
+      <!-- Sub-tabs: Standalone Dictionary vs Vocabulary Notebook -->
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-goldLeaf/20 pb-3">
+        <div class="flex items-center gap-2">
+          <button onclick="switchDictSubTab('search')" id="subTabDictSearch" class="px-4 py-2 rounded-xl text-sm font-semibold bg-moss text-parchment transition">
+            <i class="fa-solid fa-book-open mr-1.5"></i> Tra Từ Điển Hàn - Việt
+          </button>
+          <button onclick="switchDictSubTab('notebook')" id="subTabNotebook" class="px-4 py-2 rounded-xl text-sm font-semibold bg-obsidian text-stone-300 border border-goldLeaf/20 transition">
+            <i class="fa-solid fa-bookmark mr-1.5"></i> Sổ Tay Từ Vựng (<span id="notebookCountBadge">0</span>)
+          </button>
+          <button onclick="switchDictSubTab('offlinePacks')" id="subTabOfflinePacks" class="px-4 py-2 rounded-xl text-sm font-semibold bg-obsidian text-stone-300 border border-goldLeaf/20 transition">
+            <i class="fa-solid fa-download mr-1.5"></i> Gói Ngoại Tuyến
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="startVocabQuizModal()" class="px-3.5 py-2 rounded-xl bg-wisteria/20 hover:bg-wisteria/30 border border-wisteria/40 text-wisteriaGlow text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Ôn tập nhận Hạt Mặt Trời
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW A: STANDALONE DICTIONARY SEARCH -->
+      <div id="dictSubView-search" class="space-y-4">
+        <div class="botanical-card rounded-2xl p-4 sm:p-5 space-y-3">
+          <div class="flex flex-col sm:flex-row gap-2.5">
+            <div class="relative flex-1">
+              <input type="text" id="standaloneDictInput" onkeydown="if(event.key==='Enter') executeStandaloneSearch()" placeholder="Nhập từ tiếng Hàn (nguyên thể hoặc đã chia: 먹었어요, 아름다워서) hoặc nghĩa tiếng Việt..." class="w-full bg-charcoal border border-goldLeaf/25 focus:border-wisteria rounded-xl px-4 py-3 text-base text-parchment placeholder-stone-500 outline-none" />
+            </div>
+            <button onclick="executeStandaloneSearch()" class="bg-moss hover:bg-mossLight text-parchment font-medium px-6 py-3 rounded-xl transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-magnifying-glass"></i> Tra cứu
+            </button>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-400">
+            <div>
+              Nguồn tra cứu: <span id="activeDictSourceLabel" class="text-goldLeaf font-medium">Từ điển Ngoại tuyến + Bộ phân tích hình thái Hàn ngữ</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="quickDemoWord('바라보고')" class="underline hover:text-parchment">Thử: 바라보고</button>
+              <button onclick="quickDemoWord('아름다웠던')" class="underline hover:text-parchment">Thử: 아름다웠던</button>
+              <button onclick="quickDemoWord('그리움')" class="underline hover:text-parchment">Thử: 그리움</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Standalone Search Result Box -->
+        <div id="standaloneDictResult" class="botanical-card rounded-2xl p-5 hidden">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Recent Lookup History -->
+        <div class="botanical-card rounded-2xl p-5">
+          <h3 class="font-display text-lg font-bold text-parchment mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-goldLeaf"></i> Lịch sử tra cứu gần đây (Lưu cục bộ)
+          </h3>
+          <div id="lookupHistoryChips" class="flex flex-wrap gap-2">
+            <span class="text-xs text-stone-500">Chưa có lịch sử tra cứu.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW B: VOCABULARY NOTEBOOK -->
+      <div id="dictSubView-notebook" class="hidden space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2 flex-1">
+            <input type="text" id="nbSearchInput" oninput="renderNotebook()" placeholder="Tìm trong sổ tay..." class="bg-obsidian border border-goldLeaf/20 rounded-xl px-3.5 py-2 text-sm text-parchment outline-none w-full sm:w-64" />
+            <select id="nbPosFilter" onchange="renderNotebook()" class="bg-obsidian border border-goldLeaf/20 rounded-xl px-3 py-2 text-sm text-parchment outline-none">
+              <option value="all">Tất cả từ loại</option>
+              <option value="Động từ">Động từ (동사)</option>
+              <option value="Tính từ">Tính từ (형용사)</option>
+              <option value="Danh từ">Danh từ (명사)</option>
+              <option value="Phó từ">Phó từ (부사)</option>
+              <option value="Câu/Cụm từ">Câu / Cụm từ</option>
+            </select>
+            <select id="nbMasteryFilter" onchange="renderNotebook()" class="bg-obsidian border border-goldLeaf/20 rounded-xl px-3 py-2 text-sm text-parchment outline-none">
+              <option value="all">Mọi mức độ thuộc</option>
+              <option value="1">Mới lưu (★)</option>
+              <option value="2">Đang nhớ (★★)</option>
+              <option value="3">Thành thạo (★★★)</option>
+            </select>
+          </div>
+          <button onclick="exportNotebookCSV()" class="px-4 py-2 rounded-xl bg-wood hover:bg-woodLight text-parchment text-xs font-semibold border border-goldLeaf/30 transition flex items-center gap-2">
+            <i class="fa-solid fa-file-csv"></i> Xuất CSV (Anki / Quizlet)
+          </button>
+        </div>
+
+        <div id="notebookList" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- SUB-VIEW C: OFFLINE DICTIONARY PACKS -->
+      <div id="dictSubView-offlinePacks" class="hidden space-y-4">
+        <div class="botanical-card rounded-2xl p-5">
+          <h3 class="font-display text-xl font-bold text-parchment mb-1">Kho Gói Từ Điển Hàn - Việt Ngoại Tuyến</h3>
+          <p class="text-xs text-stone-400 mb-4">
+            Tải gói dữ liệu về IndexedDB trên thiết bị để tra cứu tức thì kể cả khi ngắt kết nối Internet. Hệ thống phân biệt rõ dữ liệu từ điển ngoại tuyến và giải thích AI trực tuyến.
+          </p>
+          <div id="offlinePacksGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: KHU VƯỜN TRI THỨC ==================== -->
+    <section id="view-garden" class="view-section hidden space-y-6">
+      <!-- Garden Overview & Resource Rules -->
+      <div class="botanical-card rounded-2xl p-5 sm:p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs text-mossLight font-semibold uppercase tracking-wider">Khu Vườn Tri Thức Dĩ An</span>
+            <h2 class="font-display text-2xl sm:text-3xl font-bold text-parchment mt-0.5">Ươm Mầm Ngôn Ngữ Từ Từng Trang Sách</h2>
+            <p class="text-xs sm:text-sm text-stone-400 mt-1 max-w-2xl">
+              Mỗi <strong class="text-sky-400">5 phút đọc thực tế</strong> nhận 1 Giọt Nước. Mỗi <strong class="text-amber-400">10 lượt tra cứu hợp lệ</strong> hoặc trả lời đúng câu hỏi ôn tập nhận 1 Hạt Mặt Trời.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 bg-charcoal/80 p-3.5 rounded-2xl border border-goldLeaf/20">
+            <div class="text-center px-3 border-r border-stone-700">
+              <div class="text-xs text-stone-400">Giọt nước</div>
+              <div class="text-xl font-bold text-sky-400"><i class="fa-solid fa-droplet mr-1"></i><span id="gardenWaterDisplay">0</span></div>
+            </div>
+            <div class="text-center px-3 border-r border-stone-700">
+              <div class="text-xs text-stone-400">Hạt mặt trời</div>
+              <div class="text-xl font-bold text-amber-400"><i class="fa-solid fa-sun mr-1"></i><span id="gardenSunDisplay">0</span></div>
+            </div>
+            <div class="text-center px-3">
+              <div class="text-xs text-stone-400">Tích lũy đọc</div>
+              <div class="text-base font-mono font-bold text-mossLight" id="gardenTotalMinutes">0 phút</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 Botanical Plants Grid -->
+      <div id="gardenPlantsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- 6 Plants rendered with custom SVG botanical illustrations & 5 growth stages -->
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: CẤU HÌNH AI, TỪ ĐIỂN & HỒ SƠ ==================== -->
+    <section id="view-settings" class="view-section hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Account & Multi-Device Cloud Sync -->
+        <div class="botanical-card rounded-2xl p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-display text-xl font-bold text-parchment flex items-center gap-2">
+              <i class="fa-solid fa-user-shield text-goldLeaf"></i> Tài Khoản & Đồng Bộ Đám Mây
+            </h3>
+            <span id="authStateBadge" class="text-xs px-2.5 py-1 rounded-full bg-moss/25 text-mossLight border border-mossLight/30">Đang kết nối</span>
+          </div>
+
+          <div id="accountProfileBox" class="bg-charcoal/80 rounded-xl p-4 border border-goldLeaf/15 space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-stone-400">Người dùng:</span>
+              <span id="profileEmailDisplay" class="font-medium text-parchment">Khách (Ẩn danh cục bộ)</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-stone-400">Mã định danh (UID):</span>
+              <span id="profileUidDisplay" class="font-mono text-xs text-stone-300 truncate max-w-[180px]">local-device</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-stone-400">Hàng đợi đồng bộ:</span>
+              <span id="syncQueueCount" class="text-goldLeaf font-medium">0 mục chờ</span>
+            </div>
+          </div>
+
+          <!-- Email/Password Auth Form -->
+          <div id="authFormsContainer" class="space-y-3 pt-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <input type="email" id="authEmailInput" placeholder="Email tài khoản..." class="bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-sm text-parchment outline-none" />
+              <input type="password" id="authPasswordInput" placeholder="Mật khẩu (tối thiểu 6 ký tự)..." class="bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-sm text-parchment outline-none" />
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="handleAccountLogin()" class="px-4 py-2 rounded-xl bg-moss hover:bg-mossLight text-parchment text-xs font-semibold transition">
+                Đăng nhập
+              </button>
+              <button onclick="handleAccountRegister()" class="px-4 py-2 rounded-xl bg-wood hover:bg-woodLight text-parchment text-xs font-semibold border border-goldLeaf/30 transition">
+                Đăng ký mới
+              </button>
+              <button onclick="handlePasswordReset()" class="px-3 py-2 rounded-xl bg-obsidian text-stone-400 hover:text-parchment text-xs transition">
+                Quên mật khẩu?
+              </button>
+            </div>
+          </div>
+
+          <div id="loggedInActions" class="hidden flex-wrap gap-2 pt-1">
+            <button onclick="manualSyncNow()" class="px-4 py-2 rounded-xl bg-moss text-parchment text-xs font-semibold">
+              <i class="fa-solid fa-rotate mr-1"></i> Đồng bộ hai chiều ngay
+            </button>
+            <button onclick="exportFullBackupJSON()" class="px-4 py-2 rounded-xl bg-obsidian border border-goldLeaf/25 text-parchment text-xs">
+              <i class="fa-solid fa-download mr-1"></i> Sao lưu JSON
+            </button>
+            <button onclick="handleAccountLogout()" class="px-4 py-2 rounded-xl bg-red-950/60 border border-red-500/30 text-red-300 text-xs">
+              Đăng xuất
+            </button>
+          </div>
+        </div>
+
+        <!-- AI Translation & Official Korean Dictionary API Configuration -->
+        <div class="botanical-card rounded-2xl p-5 sm:p-6 space-y-4">
+          <h3 class="font-display text-xl font-bold text-parchment flex items-center gap-2">
+            <i class="fa-solid fa-brain text-wisteria"></i> Cấu Hình AI Dịch Thuật & API Từ Điển
+          </h3>
+
+          <div class="space-y-3 text-sm">
+            <div>
+              <label class="block text-xs text-stone-400 mb-1">Chế độ dịch AI mặc định</label>
+              <select id="cfgDefaultTranslateMode" onchange="saveAppConfig()" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-parchment outline-none">
+                <option value="literary">Dịch văn học (Giữ sắc thái, cảm xúc & nhịp điệu truyện)</option>
+                <option value="natural">Dịch tự nhiên (Trôi chảy, dễ hiểu)</option>
+                <option value="literal">Dịch sát nghĩa (Bám sát cấu trúc gốc tiếng Hàn)</option>
+                <option value="learner">Dịch cho người học (Giải thích từ vựng & ngữ pháp)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs text-stone-400 mb-1">Trình độ người học mục tiêu</label>
+              <select id="cfgLearnerLevel" onchange="saveAppConfig()" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-parchment outline-none">
+                <option value="Sơ cấp (TOPIK 1-2)">Sơ cấp (TOPIK 1 - 2)</option>
+                <option value="Trung cấp (TOPIK 3-4)" selected>Trung cấp (TOPIK 3 - 4)</option>
+                <option value="Cao cấp (TOPIK 5-6)">Cao cấp (TOPIK 5 - 6)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-stone-400 mb-1">Gemini API Key (Tùy chọn nếu tự host)</label>
+                <input type="password" id="cfgGeminiApiKey" onchange="saveAppConfig()" placeholder="Để trống nếu dùng mặc định môi trường" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2 text-xs text-parchment outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs text-stone-400 mb-1">Korean Basic Dict Open API Key (NIKL)</label>
+                <input type="password" id="cfgNiklApiKey" onchange="saveAppConfig()" placeholder="Khóa từ điển Viện Ngôn ngữ QG Hàn Quốc" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2 text-xs text-parchment outline-none" />
+              </div>
+            </div>
+
+            <div class="bg-charcoal/90 border border-goldLeaf/15 rounded-xl p-3 text-xs text-stone-400 space-y-1">
+              <p class="text-parchment font-medium"><i class="fa-solid fa-circle-info text-goldLeaf mr-1"></i> Minh bạch dữ liệu & Chính sách nguồn từ điển:</p>
+              <p>• <strong>Từ điển gốc:</strong> Ưu tiên tra cứu kho từ điển ngoại tuyến + API chính thức của Viện Ngôn ngữ Quốc gia Hàn Quốc (krdict.korean.go.kr) nếu có khóa.</p>
+              <p>• <strong>NAVER Dictionary:</strong> Tuân thủ bản quyền, không quét dữ liệu trái phép; cung cấp liên kết mở trực tiếp mục từ gốc trên Naver khi cần.</p>
+              <p>• <strong>AI Dịch thuật:</strong> Chỉ gửi câu/đoạn được chọn (kèm 1 câu ngữ cảnh liền kề), không tải toàn bộ tài liệu riêng tư lên máy chủ AI.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
+  <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-charcoal/95 backdrop-blur-md border-t border-goldLeaf/20 px-2 py-1.5 flex items-center justify-around">
+    <button data-nav="library" onclick="switchTab('library')" class="mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs">
+      <i class="fa-solid fa-book-bookmark text-base mb-0.5"></i>
+      <span>Thư viện</span>
+    </button>
+    <button data-nav="reader" onclick="switchTab('reader')" class="mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs">
+      <i class="fa-solid fa-feather-pointed text-base mb-0.5"></i>
+      <span>Đọc</span>
+    </button>
+    <button data-nav="dictionary" onclick="switchTab('dictionary')" class="mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs">
+      <i class="fa-solid fa-language text-base mb-0.5"></i>
+      <span>Từ điển</span>
+    </button>
+    <button data-nav="garden" onclick="switchTab('garden')" class="mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs">
+      <i class="fa-solid fa-spa text-base mb-0.5"></i>
+      <span>Khu vườn</span>
+    </button>
+    <button data-nav="settings" onclick="switchTab('settings')" class="mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs">
+      <i class="fa-solid fa-user-gear text-base mb-0.5"></i>
+      <span>Hồ sơ</span>
+    </button>
+  </nav>
+
+  <!-- ==================== FLOATING CONTEXTUAL POPOVER: WORD DICTIONARY ==================== -->
+  <div id="wordPopover" class="fixed z-40 hidden w-[94vw] max-w-md bg-obsidian/98 backdrop-blur-xl border border-goldLeaf/40 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200">
+    <!-- Popover Header -->
+    <div class="bg-gradient-to-r from-wood/60 via-obsidian to-moss/40 px-4 py-3 border-b border-goldLeaf/20 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2 min-w-0">
+        <span id="popSurfaceWord" class="font-krSerif text-xl font-bold text-parchment truncate">단어</span>
+        <span id="popPosBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-wisteria/20 text-wisteriaGlow border border-wisteria/30 shrink-0">Từ loại</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="speakKoreanText(document.getElementById('popLemmaWord').textContent || document.getElementById('popSurfaceWord').textContent)" class="p-2 rounded-lg hover:bg-white/10 text-goldLeaf transition" title="Nghe phát âm">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+        <button onclick="saveCurrentWordToNotebook()" id="popSaveWordBtn" class="p-2 rounded-lg hover:bg-white/10 text-mossLight transition" title="Lưu vào sổ tay từ vựng">
+          <i class="fa-regular fa-bookmark"></i>
+        </button>
+        <button onclick="openNoteModalForTarget('word')" class="p-2 rounded-lg hover:bg-white/10 text-wisteria transition" title="Thêm ghi chú tại vị trí này">
+          <i class="fa-solid fa-pen-to-square"></i>
+        </button>
+        <button onclick="closeWordPopover()" class="p-2 rounded-lg hover:bg-white/10 text-stone-400 hover:text-parchment transition" title="Đóng">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Source Switcher Strip inside Popover -->
+    <div class="px-4 py-1.5 bg-charcoal/90 border-b border-goldLeaf/15 flex items-center justify-between text-[11px]">
+      <span id="popSourceIndicator" class="text-stone-400 flex items-center gap-1.5">
+        <i class="fa-solid fa-database text-mossLight"></i> Nguồn: Từ điển gốc & Phân tích hình thái
+      </span>
+      <div class="flex items-center gap-2">
+        <button onclick="triggerDeepAIWordAnalysis()" id="popDeepAiBtn" class="text-wisteriaGlow hover:underline font-medium">
+          <i class="fa-solid fa-sparkles mr-0.5"></i> Giải thích AI sâu
+        </button>
+        <a id="popNaverLink" href="#" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:underline font-medium" title="Mở mục từ gốc trên Naver Dictionary">
+          Naver <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+        </a>
+      </div>
+    </div>
+
+    <!-- Popover Scrollable Body -->
+    <div id="wordPopoverBody" class="p-4 max-h-[52vh] overflow-y-auto space-y-3 text-sm">
+      <!-- Base Lemma & Morphology Breakdown -->
+      <div class="bg-charcoal/80 rounded-xl p-3 border border-goldLeaf/15 space-y-1.5">
+        <div class="flex items-baseline justify-between gap-2">
+          <div>
+            <span class="text-xs text-stone-400">Nguyên thể: </span>
+            <span id="popLemmaWord" class="font-krSerif text-base font-bold text-goldLeaf">기본형</span>
+            <span id="popPronunciation" class="text-xs text-stone-400 ml-1.5">[발음]</span>
+          </div>
+          <span id="popHanja" class="text-xs text-wisteria font-serif"></span>
+        </div>
+        <div id="popMorphologyBox" class="text-xs text-stone-300 bg-obsidian/90 px-2.5 py-1.5 rounded-lg border-l-2 border-wisteria">
+          <!-- Morphological stem + ending breakdown -->
+        </div>
+      </div>
+
+      <!-- Vietnamese Meaning -->
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-1">1. Nghĩa tiếng Việt (Từ điển)</div>
+        <div id="popMeaningVi" class="text-parchment font-medium leading-relaxed">Đang tra cứu...</div>
+      </div>
+
+      <!-- Conjugation / Grammar Info -->
+      <div id="popGrammarSection">
+        <div class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-1">2. Biến đổi hình thái & Ngữ pháp</div>
+        <div id="popGrammarDetail" class="text-xs text-stone-300 leading-relaxed"></div>
+      </div>
+
+      <!-- Example Sentence -->
+      <div id="popExampleSection" class="bg-moss/10 border border-mossLight/25 rounded-xl p-2.5 space-y-1">
+        <div class="text-[11px] font-semibold text-mossLight">Ví dụ minh họa:</div>
+        <div id="popExampleKr" class="font-krSerif text-xs text-parchment"></div>
+        <div id="popExampleVi" class="text-xs text-stone-400 italic"></div>
+      </div>
+
+      <!-- Synonyms / Antonyms -->
+      <div id="popSynAntSection" class="flex flex-wrap gap-3 text-xs">
+        <div id="popSynonymsBox" class="hidden"><span class="text-stone-400">Đồng nghĩa:</span> <span id="popSynonyms" class="text-parchment"></span></div>
+        <div id="popAntonymsBox" class="hidden"><span class="text-stone-400">Trái nghĩa:</span> <span id="popAntonyms" class="text-parchment"></span></div>
+      </div>
+
+      <!-- AI Deep Nuance Section (Distinguished clearly from Dictionary data) -->
+      <div id="popAiSection" class="hidden bg-wisteria/10 border border-wisteria/30 rounded-xl p-3 space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold text-wisteriaGlow uppercase tracking-wider">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Phân tích chuyên sâu từ AI
+          </span>
+          <span class="text-[10px] text-stone-400">Ngữ cảnh truyện</span>
+        </div>
+        <div id="popAiContent" class="text-xs text-parchment leading-relaxed space-y-1.5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FLOATING SENTENCE / SELECTION TRANSLATION SHEET ==================== -->
+  <div id="sentenceSheet" class="fixed z-40 hidden inset-x-2 bottom-16 md:bottom-6 md:inset-x-auto md:right-6 md:w-[480px] bg-obsidian/98 backdrop-blur-xl border border-wisteria/45 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200">
+    <!-- Sheet Header -->
+    <div class="bg-gradient-to-r from-wisteria/25 via-obsidian to-wood/40 px-4 py-3 border-b border-goldLeaf/20 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-feather-pointed text-wisteriaGlow"></i>
+        <span id="sheetHeaderTitle" class="font-display font-bold text-base text-parchment">Phân Tích & Dịch Nguyên Câu</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="speakKoreanText(currentSelectedSentenceText)" class="p-2 rounded-lg hover:bg-white/10 text-goldLeaf" title="Nghe đọc cả câu/đoạn">
+          <i class="fa-solid fa-volume-high"></i>
+        </button>
+        <button onclick="saveSentenceToNotebook()" class="p-2 rounded-lg hover:bg-white/10 text-mossLight" title="Lưu câu vào sổ tay">
+          <i class="fa-solid fa-bookmark"></i>
+        </button>
+        <button onclick="openNoteModalForTarget('sentence')" class="p-2 rounded-lg hover:bg-white/10 text-wisteriaGlow" title="Ghi chú cho câu này">
+          <i class="fa-solid fa-note-sticky"></i>
+        </button>
+        <button onclick="closeSentenceSheet()" class="p-2 rounded-lg hover:bg-white/10 text-stone-400 hover:text-parchment">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Translation Mode Switcher -->
+    <div class="px-4 py-2 bg-charcoal border-b border-goldLeaf/15 flex items-center gap-1.5 overflow-x-auto text-xs">
+      <button onclick="retranslateSentenceWithMode('literary')" class="mode-pill px-2.5 py-1 rounded-lg bg-wisteria/25 text-parchment font-medium shrink-0" data-mode="literary">Văn học</button>
+      <button onclick="retranslateSentenceWithMode('natural')" class="mode-pill px-2.5 py-1 rounded-lg bg-obsidian text-stone-400 hover:text-parchment shrink-0" data-mode="natural">Tự nhiên</button>
+      <button onclick="retranslateSentenceWithMode('literal')" class="mode-pill px-2.5 py-1 rounded-lg bg-obsidian text-stone-400 hover:text-parchment shrink-0" data-mode="literal">Sát nghĩa</button>
+      <button onclick="retranslateSentenceWithMode('grammar')" class="mode-pill px-2.5 py-1 rounded-lg bg-obsidian text-stone-400 hover:text-parchment shrink-0" data-mode="grammar">Phân tích ngữ pháp</button>
+    </div>
+
+    <!-- Sheet Body -->
+    <div id="sentenceSheetBody" class="p-4 max-h-[55vh] overflow-y-auto space-y-3.5 text-sm">
+      <!-- Original Korean Text -->
+      <div class="bg-charcoal/90 rounded-xl p-3 border border-goldLeaf/15">
+        <div class="text-[11px] text-stone-400 mb-1">Văn bản gốc:</div>
+        <div id="sheetOriginalKr" class="font-krSerif text-base text-parchment leading-relaxed"></div>
+      </div>
+
+      <!-- AI Translation & Analysis Result -->
+      <div id="sheetTranslationResult" class="space-y-3">
+        <!-- Populated with natural/literary translation, literal translation, grammar breakdown, nuance -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SELECTION FLOATING ACTION BAR (FOR DRAG SELECTION) ==================== -->
+  <div id="selectionToolbar" class="fixed z-50 hidden bg-charcoal/98 border border-goldLeaf/50 rounded-2xl shadow-2xl px-2 py-1.5 flex items-center gap-1 backdrop-blur-md">
+    <button onclick="handleSelectionAction('translate')" class="px-2.5 py-1.5 rounded-xl hover:bg-wisteria/25 text-xs font-medium text-parchment flex items-center gap-1.5 transition">
+      <i class="fa-solid fa-language text-wisteriaGlow"></i> Dịch đối chiếu
+    </button>
+    <button onclick="handleSelectionAction('grammar')" class="px-2.5 py-1.5 rounded-xl hover:bg-moss/30 text-xs font-medium text-parchment flex items-center gap-1.5 transition">
+      <i class="fa-solid fa-diagram-project text-mossLight"></i> Ngữ pháp
+    </button>
+    <button onclick="handleSelectionAction('speak')" class="p-2 rounded-xl hover:bg-white/10 text-goldLeaf text-xs" title="Nghe phát âm">
+      <i class="fa-solid fa-volume-high"></i>
+    </button>
+    <button onclick="handleSelectionAction('copy')" class="p-2 rounded-xl hover:bg-white/10 text-stone-300 text-xs" title="Sao chép">
+      <i class="fa-regular fa-copy"></i>
+    </button>
+    <button onclick="handleSelectionAction('save')" class="p-2 rounded-xl hover:bg-white/10 text-mossLight text-xs" title="Lưu vào sổ tay">
+      <i class="fa-regular fa-bookmark"></i>
+    </button>
+  </div>
+
+  <!-- ==================== READER CUSTOMIZATION MODAL/DRAWER ==================== -->
+  <div id="readerSettingsModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+    <div class="bg-obsidian border border-goldLeaf/30 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-3">
+        <h3 class="font-display text-xl font-bold text-parchment">Tùy Chỉnh Không Gian Đọc</h3>
+        <button onclick="toggleReaderSettingsPanel()" class="p-2 text-stone-400 hover:text-parchment"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Theme Presets -->
+      <div>
+        <label class="block text-xs text-stone-400 mb-2">Bảng màu giấy đọc</label>
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="applyReaderTheme('darkAcademia')" class="p-2.5 rounded-xl border border-goldLeaf/40 bg-[#191C1A] text-[#EDE8DC] text-xs font-medium">Than Rêu</button>
+          <button onclick="applyReaderTheme('oldParchment')" class="p-2.5 rounded-xl border border-wood/40 bg-[#F3EFE6] text-[#2B2620] text-xs font-medium">Giấy Cũ</button>
+          <button onclick="applyReaderTheme('warmWood')" class="p-2.5 rounded-xl border border-goldLeaf/40 bg-[#261E18] text-[#EADBC8] text-xs font-medium">Gỗ Trầm</button>
+          <button onclick="applyReaderTheme('midnightInk')" class="p-2.5 rounded-xl border border-wisteria/40 bg-[#111217] text-[#D8D6E2] text-xs font-medium">Mực Đêm</button>
+        </div>
+      </div>
+
+      <!-- Font Family & Alignment -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-stone-400 mb-1">Phông chữ tiếng Hàn</label>
+          <select id="rdFontSelect" onchange="updateReaderTypography()" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3 py-2 text-xs text-parchment">
+            <option value="'Gowun Batang', serif">Gowun Batang (Văn học cổ điển)</option>
+            <option value="'Noto Serif KR', serif">Noto Serif KR (Trang trọng)</option>
+            <option value="'Noto Sans KR', sans-serif">Noto Sans KR (Hiện đại rõ nét)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-stone-400 mb-1">Căn lề đoạn văn</label>
+          <select id="rdAlignSelect" onchange="updateReaderTypography()" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3 py-2 text-xs text-parchment">
+            <option value="left">Căn trái</option>
+            <option value="justify">Căn đều hai bên</option>
+            <option value="center">Căn giữa</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Sliders: Font Size, Line Height, Paragraph Spacing, Max Width -->
+      <div class="space-y-3 text-xs">
+        <div>
+          <div class="flex justify-between text-stone-300 mb-1"><span>Cỡ chữ</span><span id="rdFontSizeVal">19px</span></div>
+          <input type="range" id="rdFontSize" min="15" max="28" value="19" oninput="updateReaderTypography()" class="w-full" />
+        </div>
+        <div>
+          <div class="flex justify-between text-stone-300 mb-1"><span>Giãn dòng</span><span id="rdLineHeightVal">1.95</span></div>
+          <input type="range" id="rdLineHeight" min="1.4" max="2.6" step="0.05" value="1.95" oninput="updateReaderTypography()" class="w-full" />
+        </div>
+        <div>
+          <div class="flex justify-between text-stone-300 mb-1"><span>Khoảng cách đoạn</span><span id="rdParaGapVal">20px</span></div>
+          <input type="range" id="rdParaGap" min="8" max="40" step="2" value="20" oninput="updateReaderTypography()" class="w-full" />
+        </div>
+        <div>
+          <div class="flex justify-between text-stone-300 mb-1"><span>Chiều rộng khung đọc</span><span id="rdWidthVal">768px</span></div>
+          <input type="range" id="rdMaxWidth" min="540" max="1080" step="24" value="768" oninput="updateReaderTypography()" class="w-full" />
+        </div>
+      </div>
+
+      <!-- Saved Profiles -->
+      <div class="pt-2 border-t border-goldLeaf/15 flex items-center justify-between gap-2">
+        <button onclick="saveReaderPresetProfile()" class="px-3.5 py-2 rounded-xl bg-moss text-parchment text-xs font-semibold">
+          <i class="fa-solid fa-floppy-disk mr-1"></i> Lưu cấu hình hiện tại
+        </button>
+        <span class="text-[11px] text-stone-400">Tự động ghi nhớ vào IndexedDB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MUSIC PLAYER MODAL ==================== -->
+  <div id="musicPlayerModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+    <div class="bg-obsidian border border-goldLeaf/30 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-3">
+        <h3 class="font-display text-xl font-bold text-parchment flex items-center gap-2">
+          <i class="fa-solid fa-record-vinyl text-goldLeaf"></i> Âm Nhạc Thư Phòng
+        </h3>
+        <button onclick="toggleMusicDrawer()" class="p-2 text-stone-400 hover:text-parchment"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-xs text-stone-400">
+        Tải lên tệp âm thanh cá nhân (MP3, WAV, OGG, M4A) từ thiết bị để nghe nền khi đọc truyện. Nhạc chỉ phát khi bạn chủ động nhấn phát.
+      </p>
+
+      <label class="cursor-pointer w-full py-2.5 px-4 rounded-xl bg-charcoal hover:bg-slateDark border border-dashed border-goldLeaf/40 text-xs text-parchment flex items-center justify-center gap-2 transition">
+        <i class="fa-solid fa-folder-plus text-goldLeaf"></i> Thêm nhạc từ thiết bị của bạn
+        <input type="file" accept="audio/*" multiple class="hidden" onchange="handleAudioFilesUpload(event)" />
+      </label>
+
+      <!-- Current Track Controls -->
+      <div class="bg-charcoal rounded-xl p-3.5 border border-goldLeaf/15 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="min-w-0">
+            <div id="currentTrackName" class="text-sm font-semibold text-parchment truncate">Chưa chọn bản nhạc</div>
+            <div id="currentTrackStatus" class="text-[11px] text-stone-400">Sẵn sàng</div>
+          </div>
+          <button onclick="toggleLoopTrack()" id="loopTrackBtn" class="p-2 rounded-lg text-stone-400 hover:text-goldLeaf text-xs" title="Lặp lại bài">
+            <i class="fa-solid fa-repeat"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-center gap-4">
+          <button onclick="prevAudioTrack()" class="p-2.5 rounded-full bg-obsidian hover:bg-slateDark text-parchment"><i class="fa-solid fa-backward-step"></i></button>
+          <button onclick="togglePlayPauseAudio()" id="playPauseAudioBtn" class="w-12 h-12 rounded-full bg-moss hover:bg-mossLight text-parchment flex items-center justify-center text-lg shadow-lg">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button onclick="nextAudioTrack()" class="p-2.5 rounded-full bg-obsidian hover:bg-slateDark text-parchment"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs text-stone-400">
+          <i class="fa-solid fa-volume-low"></i>
+          <input type="range" id="audioVolumeSlider" min="0" max="1" step="0.05" value="0.7" oninput="setAudioVolume(this.value)" class="flex-1" />
+          <i class="fa-solid fa-volume-high"></i>
+        </div>
+      </div>
+
+      <!-- Playlist -->
+      <div id="audioPlaylistBox" class="max-h-40 overflow-y-auto space-y-1.5 text-xs">
+        <div class="text-stone-500 text-center py-2">Danh sách phát trống. Hãy tải tệp nhạc của bạn lên.</div>
+      </div>
+      <audio id="bgAudioElement" onended="handleAudioEnded()"></audio>
+    </div>
+  </div>
+
+  <!-- ==================== DOCUMENT NOTES MODAL / DRAWER ==================== -->
+  <div id="notesDrawerModal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3">
+    <div class="bg-obsidian border border-goldLeaf/30 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-3">
+        <h3 class="font-display text-xl font-bold text-parchment">Ghi Chú & Bình Luận Riêng Tư</h3>
+        <button onclick="toggleNotesDrawer()" class="p-2 text-stone-400 hover:text-parchment"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <!-- Add Note Form -->
+      <div class="bg-charcoal p-3 rounded-xl border border-goldLeaf/15 space-y-2">
+        <div class="text-xs text-wisteriaGlow font-medium" id="noteTargetLabel">Ghi chú chung cho tài liệu</div>
+        <textarea id="noteContentInput" rows="2" placeholder="Viết cảm nhận, phân tích văn học hoặc lưu ý ngữ pháp tại đoạn này..." class="w-full bg-obsidian border border-goldLeaf/20 rounded-xl p-2.5 text-xs text-parchment outline-none"></textarea>
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-1.5 text-[11px] text-stone-400">
+            <input type="checkbox" id="notePublicToggle" class="rounded" /> Cho phép đồng bộ đám mây riêng tư
+          </label>
+          <button onclick="saveDocumentNote()" class="px-3.5 py-1.5 rounded-xl bg-moss text-parchment text-xs font-semibold">Lưu ghi chú</button>
+        </div>
+      </div>
+
+      <!-- Notes List for Current Document -->
+      <div id="docNotesList" class="max-h-60 overflow-y-auto space-y-2 text-xs">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== VOCABULARY QUIZ MODAL (EARN SUN SEEDS) ==================== -->
+  <div id="vocabQuizModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-xs flex items-center justify-center p-3">
+    <div class="bg-obsidian border border-wisteria/40 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-3">
+        <h3 class="font-display text-xl font-bold text-parchment flex items-center gap-2">
+          <i class="fa-solid fa-sun text-amber-400"></i> Thử Thách Tri Thức
+        </h3>
+        <button onclick="closeVocabQuizModal()" class="p-2 text-stone-400 hover:text-parchment"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div id="quizBody" class="space-y-3">
+        <!-- Dynamic Quiz Question -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PASTE KOREAN TEXT MODAL ==================== -->
+  <div id="pasteTextModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-xs flex items-center justify-center p-3">
+    <div class="bg-obsidian border border-goldLeaf/30 rounded-2xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-3">
+        <h3 class="font-display text-xl font-bold text-parchment">Thêm Văn Bản Tiếng Hàn Mới</h3>
+        <button onclick="closePasteTextModal()" class="p-2 text-stone-400 hover:text-parchment"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <input type="text" id="pasteDocTitle" placeholder="Tiêu đề tác phẩm / bài đọc..." class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-parchment outline-none" />
+        <input type="text" id="pasteDocGenre" placeholder="Thể loại (Tiểu thuyết, Tản văn, Báo chí...)" class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl px-3.5 py-2.5 text-parchment outline-none" />
+        <textarea id="pasteDocContent" rows="7" placeholder="Dán nội dung tiếng Hàn vào đây. Hệ thống giữ nguyên toàn bộ đoạn văn gốc..." class="w-full bg-charcoal border border-goldLeaf/20 rounded-xl p-3.5 font-krSerif text-parchment outline-none"></textarea>
+        <div class="flex justify-end gap-2">
+          <button onclick="closePasteTextModal()" class="px-4 py-2 rounded-xl bg-charcoal text-stone-300 text-xs">Hủy</button>
+          <button onclick="savePastedDocument()" class="px-5 py-2 rounded-xl bg-moss text-parchment text-xs font-semibold">Lưu vào thư viện</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container (Replaces alert/confirm) -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-[60] flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- ==================== JAVASCRIPT APPLICATION LOGIC & FIREBASE ==================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import {
+      getAuth,
+      signInAnonymously,
+      signInWithCustomToken,
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      sendPasswordResetEmail,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      getDocs,
+      deleteDoc,
+      collection,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // 1. GLOBAL STATE & ARCHITECTURE CONFIGURATION
+    // =========================================================================
+    const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'dian-tu-ha-2-2';
+    let firebaseApp = null;
+    let auth = null;
+    let db = null;
+    let currentUser = null;
+    let idb = null;
+
+    // Application Runtime State
+    const state = {
+      activeTab: 'library',
+      documents: [],
+      currentDocId: null,
+      currentChapterIdx: 0,
+      vocabulary: [],        // Saved notebook items
+      lookupHistory: [],     // History of looked up words
+      lookupCountTowardsSun: 0,
+      lookedUpUniqueSession: new Set(),
+      notes: [],             // Document anchored notes
+      aiCache: {},           // Cache for AI translations & word deep analyses
+      dictCache: {},         // Cache for dictionary lookups
+      downloadedPacks: ['core_literature'], // Default built-in starter pack
+      garden: {
+        waterDrops: 6,
+        sunSeeds: 3,
+        validSecondsAccumulated: 0, // Resets every 300s (5 mins) -> +1 water drop
+        totalValidMinutes: 0,
+        activePlantId: 'primrose',
+        plants: {
+          primrose: { id: 'primrose', unlocked: true, waterSpent: 0, sunSpent: 0, stage: 1 },
+          rose: { id: 'rose', unlocked: false, waterSpent: 0, sunSpent: 0, stage: 1 },
+          clover: { id: 'clover', unlocked: false, waterSpent: 0, sunSpent: 0, stage: 1 },
+          cherry: { id: 'cherry', unlocked: false, waterSpent: 0, sunSpent: 0, stage: 1 },
+          paulownia: { id: 'paulownia', unlocked: false, waterSpent: 0, sunSpent: 0, stage: 1 },
+          wisteria: { id: 'wisteria', unlocked: false, waterSpent: 0, sunSpent: 0, stage: 1 }
+        }
+      },
+      readerSettings: {
+        theme: 'darkAcademia',
+        bgColor: '#191C1A',
+        textColor: '#EDE8DC',
+        fontFamily: "'Gowun Batang', serif",
+        fontSize: 19,
+        lineHeight: 1.95,
+        paraGap: 20,
+        maxWidth: 768,
+        textAlign: 'left'
+      },
+      appConfig: {
+        defaultTranslateMode: 'literary',
+        learnerLevel: 'Trung cấp (TOPIK 3-4)',
+        geminiApiKey: '',
+        niklApiKey: ''
+      },
+      syncQueue: [],
+      isFullscreen: false
+    };
+
+    // =========================================================================
+    // 2. BUILT-IN OFFLINE KOREAN-VIETNAMESE DICTIONARY & MORPHOLOGY ENGINE
+    // =========================================================================
+    const OFFLINE_DICT_PACKS = [
+      { id: 'core_literature', name: 'Từ vựng Văn học & Tiểu thuyết (Cốt lõi)', level: 'Văn học', count: 48, desc: 'Từ vựng giàu sắc thái cảm xúc, miêu tả tâm lý trong truyện Hàn.' },
+      { id: 'topik_1', name: 'Gói Sơ cấp & TOPIK I', level: 'Sơ cấp', count: 35, desc: 'Động từ, tính từ và danh từ nền tảng giao tiếp & đọc hiểu cơ bản.' },
+      { id: 'topik_2', name: 'Gói Trung - Cao cấp & TOPIK II', level: 'Trung - Cao cấp', count: 40, desc: 'Từ Hán Hàn, quán dụng ngữ và cấu trúc văn viết nâng cao.' }
+    ];
+
+    // Real structured Korean-Vietnamese dictionary entries (expandable via downloaded packs)
+    const OFFLINE_DICTIONARY_DB = {
+      '바라보다': {
+        lemma: '바라보다',
+        pronunciation: '[바라보다 / ba-ra-bo-da]',
+        pos: 'Động từ',
+        hanja: '',
+        meaningVi: 'Ngắm nhìn, trông ra, hướng mắt nhìn về phía xa (mang sắc thái trầm tư, dõi theo)',
+        grammar: 'Động từ ghép (바라다 + 보다). Bất quy tắc: không. Kết hợp với -고 있다 diễn tả trạng thái đang dõi nhìn.',
+        exampleKr: '그는 아무 말 없이 창밖을 바라보고 있었다.',
+        exampleVi: 'Anh ấy lặng lẽ nhìn ra ngoài cửa sổ mà không nói một lời.',
+        synonyms: ['쳐다보다', '응시하다'],
+        antonyms: ['외면하다'],
+        pack: 'core_literature'
+      },
+      '아무': {
+        lemma: '아무',
+        pronunciation: '[아무 / a-mu]',
+        pos: 'Định từ / Đại từ',
+        hanja: '',
+        meaningVi: 'Bất cứ, nào (khi đi với phủ định 없이/도 mang nghĩa: không một chút nào, không ai)',
+        grammar: 'Thường đứng trước danh từ (아무 말, 아무 생각) kết hợp với phủ định để nhấn mạnh sự trống rỗng hoàn toàn.',
+        exampleKr: '아무 걱정하지 말고 푹 쉬세요.',
+        exampleVi: 'Đừng lo lắng bất cứ điều gì cả, hãy nghỉ ngơi thật thoải mái nhé.',
+        synonyms: ['어떤'],
+        antonyms: [],
+        pack: 'topik_1'
+      },
+      '말': {
+        lemma: '말',
+        pronunciation: '[말 / mal]',
+        pos: 'Danh từ',
+        hanja: '',
+        meaningVi: 'Lời nói, ngôn ngữ, tiếng nói',
+        grammar: 'Danh từ thuần Hàn. Kết hợp: 말을 걸다 (bắt chuyện), 말을 아끼다 (tiết kiệm lời nói).',
+        exampleKr: '따뜻한 말 한마디가 큰 위로가 된다.',
+        exampleVi: 'Một lời nói ấm áp trở thành niềm an ủi lớn lao.',
+        synonyms: ['언어', '말씀'],
+        antonyms: ['침묵'],
+        pack: 'topik_1'
+      },
+      '없이': {
+        lemma: '없이',
+        pronunciation: '[업씨 / eop-ssi]',
+        pos: 'Phó từ',
+        hanja: '',
+        meaningVi: 'Không có, mà không, thiếu vắng',
+        grammar: 'Hình thành từ tính từ 없다 + hậu tố phó từ -이. Bổ nghĩa cho động từ phía sau.',
+        exampleKr: '그녀는 이유 없이 눈물을 흘렸다.',
+        exampleVi: 'Cô ấy rơi nước mắt mà không rõ lý do.',
+        synonyms: [],
+        antonyms: ['있게'],
+        pack: 'topik_1'
+      },
+      '창밖': {
+        lemma: '창밖',
+        pronunciation: '[창박 / chang-bak]',
+        pos: 'Danh từ',
+        hanja: '窓밖',
+        meaningVi: 'Ngoài cửa sổ, bên ngoài khung cửa',
+        grammar: 'Danh từ ghép: 창 (cửa sổ - 窓) + 밖 (bên ngoài). Khi đi với tiểu từ 을 đọc nối âm thành [창바끌].',
+        exampleKr: '창밖에는 가랑비가 조용히 내리고 있었다.',
+        exampleVi: 'Ngoài cửa sổ, mưa phùn đang lặng lẽ rơi.',
+        synonyms: [],
+        antonyms: ['창안'],
+        pack: 'core_literature'
+      },
+      '있다': {
+        lemma: '있다',
+        pronunciation: '[읻따 / it-tta]',
+        pos: 'Động từ / Tính từ',
+        hanja: '',
+        meaningVi: 'Có, tồn tại, ở; (trợ động từ -고 있다) đang diễn ra',
+        grammar: 'Khi đứng sau -고 tạo thành thì tiếp diễn (-고 있었다: đã đang làm gì trong quá khứ).',
+        exampleKr: '오래된 서재에 조용히 앉아 있었다.',
+        exampleVi: 'Tôi đã ngồi lặng lẽ trong thư phòng cổ kính.',
+        synonyms: ['존재하다'],
+        antonyms: ['없다'],
+        pack: 'topik_1'
+      },
+      '그리움': {
+        lemma: '그리움',
+        pronunciation: '[그리움 / geu-ri-um]',
+        pos: 'Danh từ',
+        hanja: '',
+        meaningVi: 'Nỗi nhớ nhung, niềm thương nhớ da diết',
+        grammar: 'Danh từ hóa từ tính từ 그립다 (bất quy tắc ㅂ: 그립 + 우 + ㅁ -> 그리움).',
+        exampleKr: '가을바람이 불면 오래된 그리움이 밀려온다.',
+        exampleVi: 'Mỗi khi gió thu thổi về, nỗi nhớ nhung xưa cũ lại ùa về.',
+        synonyms: ['연모', '향수'],
+        antonyms: ['망각'],
+        pack: 'core_literature'
+      },
+      '아름답다': {
+        lemma: '아름답다',
+        pronunciation: '[아름답따 / a-reum-dap-tta]',
+        pos: 'Tính từ',
+        hanja: '',
+        meaningVi: 'Đẹp đẽ, tươi đẹp, mỹ lệ',
+        grammar: 'Bất quy tắc ㅂ: trước nguyên âm ㅂ biến thành 우 (아름다워요, 아름다웠던).',
+        exampleKr: '달빛 아래 핀 등나무 꽃이 참 아름다웠다.',
+        exampleVi: 'Những đóa hoa tử đằng nở dưới ánh trăng thật đẹp đẽ.',
+        synonyms: ['곱다', '수려하다'],
+        antonyms: ['추하다'],
+        pack: 'topik_1'
+      },
+      '기억': {
+        lemma: '기억',
+        pronunciation: '[기억 / gi-eok]',
+        pos: 'Danh từ',
+        hanja: '記憶',
+        meaningVi: 'Ký ức, trí nhớ, kỷ niệm',
+        grammar: 'Danh từ Hán Hàn (Ký Ức). Kết hợp với 하다 tạo thành động từ 기억하다 (nhớ).',
+        exampleKr: '그날의 온기는 아직도 선명한 기억으로 남아 있다.',
+        exampleVi: 'Hơi ấm của ngày hôm đó vẫn còn đọng lại như một ký ức rõ nét.',
+        synonyms: ['추억', '회상'],
+        antonyms: ['망각'],
+        pack: 'topik_2'
+      },
+      '조용히': {
+        lemma: '조용히',
+        pronunciation: '[조용히 / jo-yong-hi]',
+        pos: 'Phó từ',
+        hanja: '靜용히',
+        meaningVi: 'Một cách yên tĩnh, lặng lẽ, êm đềm',
+        grammar: 'Tính từ 조용하다 + hậu tố -히 tạo thành phó từ bổ nghĩa cho hành động.',
+        exampleKr: '도서관 안에서는 모두 조용히 책을 읽는다.',
+        exampleVi: 'Bên trong thư viện, mọi người đều lặng lẽ đọc sách.',
+        synonyms: ['고요히', '잠잠히'],
+        antonyms: ['시끄럽게'],
+        pack: 'topik_1'
+      },
+      '계절': {
+        lemma: '계절',
+        pronunciation: '[계절 / gye-jeol]',
+        pos: 'Danh từ',
+        hanja: '季節',
+        meaningVi: 'Mùa, tiết trời trong năm',
+        grammar: 'Danh từ Hán Hàn (Quý Tiết).',
+        exampleKr: '계절이 바뀔 때마다 정원의 풍경도 달라진다.',
+        exampleVi: 'Mỗi khi mùa thay đổi, khung cảnh khu vườn cũng đổi khác.',
+        synonyms: ['철', '시즌'],
+        antonyms: [],
+        pack: 'topik_1'
+      },
+      '마음': {
+        lemma: '마음',
+        pronunciation: '[마음 / ma-eum]',
+        pos: 'Danh từ',
+        hanja: '',
+        meaningVi: 'Tấm lòng, tâm hồn, trái tim, suy nghĩ',
+        grammar: 'Danh từ thuần Hàn xuất hiện tần suất cao trong văn học. Thành ngữ: 마음을 열다 (mở lòng).',
+        exampleKr: '글 한 줄이 지친 마음을 어루만져 주었다.',
+        exampleVi: 'Một dòng chữ đã vỗ về tâm hồn mệt mỏi.',
+        synonyms: ['심정', '정서'],
+        antonyms: [],
+        pack: 'topik_1'
+      },
+      '스치다': {
+        lemma: '스치다',
+        pronunciation: '[스치다 / seu-chi-da]',
+        pos: 'Động từ',
+        hanja: '',
+        meaningVi: 'Lướt qua, thoảng qua, chạm nhẹ',
+        grammar: 'Động từ có quy tắc. Thường dùng cho gió, ký ức hoặc ánh nhìn thoáng qua.',
+        exampleKr: '서늘한 저녁 바람이 뺨을 스치고 지나갔다.',
+        exampleVi: 'Làn gió chiều mát lạnh khẽ lướt qua gò má.',
+        synonyms: ['지나가다', '닿다'],
+        antonyms: ['머무르다'],
+        pack: 'core_literature'
+      },
+      '머무르다': {
+        lemma: '머무르다',
+        pronunciation: '[머무르다 / meo-mu-reu-da]',
+        pos: 'Động từ',
+        hanja: '',
+        meaningVi: 'Dừng lại, lưu lại, nán lại, ở lại',
+        grammar: 'Bất quy tắc 르: 머물러요, 머물렀다. Rút gọn: 머물다.',
+        exampleKr: '시선이 오래도록 그 문장 위에 머물렀다.',
+        exampleVi: 'Ánh nhìn đã dừng lại thật lâu trên câu văn ấy.',
+        synonyms: ['체류하다', '남다'],
+        antonyms: ['떠나다'],
+        pack: 'core_literature'
+      },
+      '서재': {
+        lemma: '서재',
+        pronunciation: '[서재 / seo-jae]',
+        pos: 'Danh từ',
+        hanja: '書齋',
+        meaningVi: 'Thư phòng, phòng đọc sách',
+        grammar: 'Danh từ Hán Hàn (Thư Trai).',
+        exampleKr: '오래된 서재에는 종이 냄새와 풀 내음이 가득했다.',
+        exampleVi: 'Trong thư phòng cổ tràn ngập mùi giấy cũ và hương cỏ cây.',
+        synonyms: ['도서실'],
+        antonyms: [],
+        pack: 'core_literature'
+      },
+      '속삭이다': {
+        lemma: '속삭이다',
+        pronunciation: '[속싸기다 / sok-ssa-gi-da]',
+        pos: 'Động từ',
+        hanja: '',
+        meaningVi: 'Thì thầm, nói khẽ, rì rào',
+        grammar: 'Động từ có quy tắc. Dùng cho tiếng nói nhỏ hoặc tiếng lá cây xào xạc.',
+        exampleKr: '나뭇잎들이 바람에 흔들리며 비밀을 속삭였다.',
+        exampleVi: 'Những chiếc lá rung rinh trong gió như đang thì thầm điều bí mật.',
+        synonyms: ['소곤거리다'],
+        antonyms: ['외치다'],
+        pack: 'core_literature'
+      },
+      '피어나다': {
+        lemma: '피어나다',
+        pronunciation: '[피어나다 / pi-eo-na-da]',
+        pos: 'Động từ',
+        hanja: '',
+        meaningVi: 'Nở rộ, bừng nở, nảy sinh (hoa, nụ cười, hy vọng)',
+        grammar: 'Động từ ghép: 피다 (nở) + 어 + 나다 (sinh ra).',
+        exampleKr: '작은 씨앗에서 보랏빛 등나무 꽃이 피어났다.',
+        exampleVi: 'Từ hạt giống nhỏ bé, đóa hoa tử đằng sắc tím đã bừng nở.',
+        synonyms: ['개화하다', '솟아나다'],
+        antonyms: ['시들다'],
+        pack: 'core_literature'
+      },
+      '시간': {
+        lemma: '시간',
+        pronunciation: '[시간 / si-gan]',
+        pos: 'Danh từ',
+        hanja: '時間',
+        meaningVi: 'Thời gian, tiếng đồng hồ',
+        grammar: 'Danh từ Hán Hàn (Thời Gian).',
+        exampleKr: '천천히 흐르는 시간 속에서 문장의 깊이를 음미한다.',
+        exampleVi: 'Trong dòng thời gian trôi chầm chậm, ta chiêm nghiệm chiều sâu của câu chữ.',
+        synonyms: ['세월', '시각'],
+        antonyms: [],
+        pack: 'topik_1'
+      }
+    };
+
+    /**
+     * Korean Morphological Analyzer (Bộ phân tích hình thái tiếng Hàn)
+     * Strips particles (조사), tense markers (선어말어미), sentence endings (종결어미),
+     * and handles Hangul Jamo decomposition for irregular predicates (ㅂ, 르, ㄷ, ㅎ, ㄹ).
+     */
+    function analyzeKoreanMorphology(rawToken) {
+      // Clean punctuation around Hangul
+      const clean = rawToken.replace(/^[^\uAC00-\uD7A3]+|[^\uAC00-\uD7A3]+$/g, '');
+      if (!clean) return null;
+
+      // 1. Direct match in dictionary
+      if (OFFLINE_DICTIONARY_DB[clean]) {
+        return {
+          surface: clean,
+          lemma: clean,
+          breakdown: `${clean} (Dạng nguyên thể / từ gốc)`,
+          entry: OFFLINE_DICTIONARY_DB[clean]
+        };
+      }
+
+      // 2. Common particles (조사) stripping for nouns/pronouns
+      const particles = [
+        '에서는', '에게는', '으로부터', '이라고', '이라는',
+        '에서', '에게', '한테', '부터', '까지', '처럼', '만큼', '보다', '으로', '이나', '이라도',
+        '은', '는', '이', '가', '을', '를', '에', '의', '도', '만', '로', '와', '과', '야'
+      ];
+      for (const p of particles) {
+        if (clean.endsWith(p) && clean.length > p.length) {
+          const stem = clean.slice(0, -p.length);
+          if (OFFLINE_DICTIONARY_DB[stem]) {
+            return {
+              surface: clean,
+              lemma: stem,
+              breakdown: `${stem} (Danh từ) + -${p} (Tiểu từ)`,
+              entry: OFFLINE_DICTIONARY_DB[stem]
+            };
+          }
+        }
+      }
+
+      // 3. Predicate endings (어미) stripping & stem reconstruction
+      const endings = [
+        { suffix: '고 있었다', label: '-고 있었다 (Đang ... trong quá khứ)' },
+        { suffix: '고 있다', label: '-고 있다 (Đang ...)' },
+        { suffix: '고', label: '-고 (Và / rồi / liên kết hành động)' },
+        { suffix: '았었다', label: '-았었다 (Đã từng)' },
+        { suffix: '었었다', label: '-었었다 (Đã từng)' },
+        { suffix: '았습니다', label: '-았습니다 (Đuôi câu quá khứ trang trọng)' },
+        { suffix: '었습니다', label: '-었습니다 (Đuôi câu quá khứ trang trọng)' },
+        { suffix: '았어요', label: '-았어요 (Đuôi câu quá khứ thân mật)' },
+        { suffix: '었어요', label: '-었어요 (Đuôi câu quá khứ thân mật)' },
+        { suffix: '았다', label: '-았다 (Đuôi câu quá khứ văn viết)' },
+        { suffix: '었다', label: '-었다 (Đuôi câu quá khứ văn viết)' },
+        { suffix: '였다', label: '-였다 (Đuôi câu quá khứ văn viết)' },
+        { suffix: '았던', label: '-았던 (Định ngữ quá khứ hồi tưởng)' },
+        { suffix: '었던', label: '-었던 (Định ngữ quá khứ hồi tưởng)' },
+        { suffix: '습니다', label: '-습니다 (Đuôi câu trần thuật trang trọng)' },
+        { suffix: 'ㅂ니다', label: '-ㅂ니다 (Đuôi câu trần thuật trang trọng)' },
+        { suffix: '아서', label: '-아서 (Vì / rồi)' },
+        { suffix: '어서', label: '-어서 (Vì / rồi)' },
+        { suffix: '으면', label: '-으면 (Nếu / khi)' },
+        { suffix: '면', label: '-면 (Nếu / khi)' },
+        { suffix: '는데', label: '-는데 (Mà / nhưng / bối cảnh)' },
+        { suffix: '은데', label: '-은데 (Mà / bối cảnh tính từ)' },
+        { suffix: '며', label: '-며 (Vừa ... vừa / và)' },
+        { suffix: '면서', label: '-면서 (Trong khi)' },
+        { suffix: '는', label: '-는 (Định ngữ hiện tại)' },
+        { suffix: '은', label: '-은 (Định ngữ quá khứ/tính từ)' },
+        { suffix: '을', label: '-을 (Định ngữ tương lai)' },
+        { suffix: 'ㄹ', label: '-ㄹ (Định ngữ tương lai)' },
+        { suffix: '아', label: '-아 (Đuôi liên kết / thân mật)' },
+        { suffix: '어', label: '-어 (Đuôi liên kết / thân mật)' },
+        { suffix: '지', label: '-지 (Phủ định / xác nhận)' },
+        { suffix: '기', label: '-기 (Danh từ hóa động từ)' }
+      ];
+
+      for (const item of endings) {
+        if (clean.endsWith(item.suffix) && clean.length > item.suffix.length) {
+          const stem = clean.slice(0, -item.suffix.length);
+          const candidateLemma = stem + '다';
+          if (OFFLINE_DICTIONARY_DB[candidateLemma]) {
+            return {
+              surface: clean,
+              lemma: candidateLemma,
+              breakdown: `${stem}- (Gốc từ ${candidateLemma}) + ${item.label}`,
+              entry: OFFLINE_DICTIONARY_DB[candidateLemma]
+            };
+          }
+
+          // Handle ㅂ irregular (e.g. 아름다웠던 -> 아름다우 + 었던 -> 아름답다)
+          if (stem.endsWith('우')) {
+            const baseWithoutU = stem.slice(0, -1);
+            const lastChar = baseWithoutU.charCodeAt(baseWithoutU.length - 1);
+            if (lastChar >= 0xAC00 && lastChar <= 0xD7A3) {
+              // Add Jongseong ㅂ (index 17) to last syllable
+              const sIndex = lastChar - 0xAC00;
+              if (sIndex % 28 === 0) {
+                const reconstructedChar = String.fromCharCode(lastChar + 17);
+                const bIrregLemma = baseWithoutU.slice(0, -1) + reconstructedChar + '다';
+                if (OFFLINE_DICTIONARY_DB[bIrregLemma]) {
+                  return {
+                    surface: clean,
+                    lemma: bIrregLemma,
+                    breakdown: `${bIrregLemma} (Bất quy tắc ㅂ → 우) + ${item.label}`,
+                    entry: OFFLINE_DICTIONARY_DB[bIrregLemma]
+                  };
+                }
+              }
+            }
+          }
+
+          // Handle 르 irregular (e.g. 머물렀다 -> 머물 + 렀다 -> 머무르다)
+          if (clean.includes('렀') || clean.includes('러')) {
+            const idx = clean.indexOf('렀') !== -1 ? clean.indexOf('렀') : clean.indexOf('러');
+            const pre = clean.slice(0, idx);
+            if (pre.length > 0) {
+              const lastCode = pre.charCodeAt(pre.length - 1);
+              const sIndex = lastCode - 0xAC00;
+              // If ends with ㄹ jongseong (index 8)
+              if (sIndex >= 0 && sIndex % 28 === 8) {
+                const strippedL = String.fromCharCode(lastCode - 8);
+                const reuLemma = pre.slice(0, -1) + strippedL + '르다';
+                if (OFFLINE_DICTIONARY_DB[reuLemma]) {
+                  return {
+                    surface: clean,
+                    lemma: reuLemma,
+                    breakdown: `${reuLemma} (Bất quy tắc 르 → ㄹㄹ) + ${item.label}`,
+                    entry: OFFLINE_DICTIONARY_DB[reuLemma]
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 4. Fallback morphological guess if word is not in offline DB yet
+      let guessedLemma = clean;
+      let guessNote = 'Chưa có trong gói từ điển ngoại tuyến đã tải.';
+      for (const item of endings) {
+        if (clean.endsWith(item.suffix) && clean.length > item.suffix.length) {
+          const stem = clean.slice(0, -item.suffix.length);
+          guessedLemma = stem + '다';
+          guessNote = `Phân tích hình thái dự đoán: ${stem}- (${guessedLemma}) + ${item.label}`;
+          break;
+        }
+      }
+      if (guessedLemma === clean) {
+        for (const p of particles) {
+          if (clean.endsWith(p) && clean.length > p.length + 1) {
+            guessedLemma = clean.slice(0, -p.length);
+            guessNote = `Tách tiểu từ: ${guessedLemma} + -${p}`;
+            break;
+          }
+        }
+      }
+
+      return {
+        surface: clean,
+        lemma: guessedLemma,
+        breakdown: guessNote,
+        entry: null
+      };
+    }
+
+    // =========================================================================
+    // 3. SAMPLE LITERATURE (AUTHENTIC KOREAN SHORT PROSE FOR IMMEDIATE READING)
+    // =========================================================================
+    const STARTER_DOCUMENTS = [
+      {
+        id: 'doc-wisteria-library',
+        title: '등나무 아래의 오래된 서재 (Thư Phòng Cổ Dưới Giàn Tử Đằng)',
+        author: 'Dĩ An Tư Hạ Tuyển Tập',
+        genre: 'Văn học trữ tình',
+        status: 'reading',
+        favorite: true,
+        createdAt: Date.now() - 86400000,
+        updatedAt: Date.now(),
+        progress: {
+          chapterIdx: 0,
+          paragraphIdx: 0,
+          scrollTop: 0,
+          percent: 15,
+          readingSeconds: 180,
+          lookupCount: 3
+        },
+        chapters: [
+          {
+            title: '제1장. 비 오는 오후의 문장들',
+            paragraphs: [
+              '그는 아무 말 없이 창밖을 바라보고 있었다.',
+              '창밖에는 가랑비가 조용히 내리고 있었고, 젖은 흙내음이 오래된 서재 안으로 스며들었다.',
+              '책상 위에 놓인 낡은 수첩에는 계절이 바뀔 때마다 적어 내려간 짧은 문장들이 머물러 있었다.',
+              '아름다웠던 기억은 언제나 서늘한 바람처럼 마음을 스치고 지나간다.',
+              '나뭇잎들이 바람에 흔들리며 비밀을 속삭였다. 작은 씨앗에서 보랏빛 등나무 꽃이 피어났다.',
+              '천천히 흐르는 시간 속에서 문장의 깊이를 음미한다. 글 한 줄이 지친 마음을 어루만져 주었다.'
+            ]
+          },
+          {
+            title: '제2장. 그리움의 기록',
+            paragraphs: [
+              '가을바람이 불면 오래된 그리움이 밀려온다.',
+              '그날의 온기는 아직도 선명한 기억으로 남아 있다.',
+              '도서관 안에서는 모두 조용히 책을 읽는다. 시선이 오래도록 그 문장 위에 머물렀다.',
+              '따뜻한 말 한마디가 큰 위로가 된다. 그녀는 이유 없이 눈물을 흘렸다.'
+            ]
+          }
+        ]
+      }
+    ];
+
+    // =========================================================================
+    // 4. INDEXEDDB LOCAL PERSISTENCE ENGINE
+    // =========================================================================
+    function initIndexedDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('DiAnTuHaDB_v2', 1);
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains('kvStore')) {
+            database.createObjectStore('kvStore');
+          }
+        };
+        request.onsuccess = (e) => {
+          idb = e.target.result;
+          resolve(idb);
+        };
+        request.onerror = (e) => {
+          console.error('IndexedDB error:', e);
+          reject(e);
+        };
+      });
+    }
+
+    async function idbGet(key) {
+      if (!idb) return null;
+      return new Promise((resolve) => {
+        const tx = idb.transaction('kvStore', 'readonly');
+        const store = tx.objectStore('kvStore');
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function idbSet(key, val) {
+      if (!idb) return;
+      return new Promise((resolve) => {
+        const tx = idb.transaction('kvStore', 'readwrite');
+        const store = tx.objectStore('kvStore');
+        store.put(val, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    }
+
+    async function persistAllStateToLocal() {
+      await idbSet('documents', state.documents);
+      await idbSet('vocabulary', state.vocabulary);
+      await idbSet('lookupHistory', state.lookupHistory);
+      await idbSet('notes', state.notes);
+      await idbSet('garden', state.garden);
+      await idbSet('readerSettings', state.readerSettings);
+      await idbSet('appConfig', state.appConfig);
+      await idbSet('aiCache', state.aiCache);
+      await idbSet('downloadedPacks', state.downloadedPacks);
+      await idbSet('syncQueue', state.syncQueue);
+    }
+
+    async function loadStateFromLocal() {
+      const docs = await idbGet('documents');
+      state.documents = docs && docs.length > 0 ? docs : JSON.parse(JSON.stringify(STARTER_DOCUMENTS));
+
+      const vocab = await idbGet('vocabulary');
+      if (vocab) state.vocabulary = vocab;
+
+      const hist = await idbGet('lookupHistory');
+      if (hist) state.lookupHistory = hist;
+
+      const notes = await idbGet('notes');
+      if (notes) state.notes = notes;
+
+      const garden = await idbGet('garden');
+      if (garden) state.garden = { ...state.garden, ...garden };
+
+      const rdSettings = await idbGet('readerSettings');
+      if (rdSettings) state.readerSettings = { ...state.readerSettings, ...rdSettings };
+
+      const cfg = await idbGet('appConfig');
+      if (cfg) state.appConfig = { ...state.appConfig, ...cfg };
+
+      const cache = await idbGet('aiCache');
+      if (cache) state.aiCache = cache;
+
+      const packs = await idbGet('downloadedPacks');
+      if (packs) state.downloadedPacks = packs;
+
+      const queue = await idbGet('syncQueue');
+      if (queue) state.syncQueue = queue;
+    }
+
+    // =========================================================================
+    // 5. FIREBASE AUTHENTICATION & TWO-WAY CLOUD SYNC
+    // =========================================================================
+    async function initCloudServices() {
+      try {
+        if (typeof __firebase_config === 'undefined' || !__firebase_config) {
+          updateSyncUI('local-only');
+          return;
+        }
+        const firebaseConfig = JSON.parse(__firebase_config);
+        firebaseApp = initializeApp(firebaseConfig);
+        auth = getAuth(firebaseApp);
+        db = getFirestore(firebaseApp);
+
+        // Rule 3: Auth before queries
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+          currentUser = user;
+          updateAccountProfileUI();
+          if (user) {
+            await syncWithFirestore();
+          }
+        });
+      } catch (err) {
+        console.warn('Cloud sync initialized in local fallback mode:', err.message);
+        updateSyncUI('local-only');
+      }
+    }
+
+    // Strict Firestore User Path: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+    function getUserDocRef(collectionName, docId) {
+      return doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, collectionName, docId);
+    }
+
+    async function queueCloudSync(entityType) {
+      if (!state.syncQueue.includes(entityType)) {
+        state.syncQueue.push(entityType);
+      }
+      updateSyncQueueBadge();
+      await persistAllStateToLocal();
+      if (navigator.onLine && db && currentUser) {
+        await syncWithFirestore();
+      }
+    }
+
+    async function syncWithFirestore() {
+      if (!db || !currentUser || !navigator.onLine) {
+        updateSyncUI('offline');
+        return;
+      }
+      try {
+        updateSyncUI('syncing');
+        const profileRef = getUserDocRef('userData', 'mainState');
+        const remoteSnap = await getDoc(profileRef);
+
+        if (remoteSnap.exists()) {
+          const remote = remoteSnap.data();
+          // Two-way conflict resolution using updatedAt timestamps & union merge for vocab
+          if (remote.updatedAt && remote.updatedAt > (state.lastSyncedAt || 0)) {
+            if (Array.isArray(remote.vocabulary)) {
+              const map = new Map();
+              [...remote.vocabulary, ...state.vocabulary].forEach(item => map.set(item.id, item));
+              state.vocabulary = Array.from(map.values());
+            }
+            if (remote.garden && (remote.garden.totalValidMinutes || 0) > state.garden.totalValidMinutes) {
+              state.garden = { ...state.garden, ...remote.garden };
+            }
+            if (Array.isArray(remote.documents)) {
+              const docMap = new Map();
+              remote.documents.forEach(d => docMap.set(d.id, d));
+              state.documents.forEach(localDoc => {
+                const remDoc = docMap.get(localDoc.id);
+                if (!remDoc || (localDoc.updatedAt || 0) >= (remDoc.updatedAt || 0)) {
+                  docMap.set(localDoc.id, localDoc);
+                }
+              });
+              state.documents = Array.from(docMap.values());
+            }
+          }
+        }
+
+        state.lastSyncedAt = Date.now();
+        // Push consolidated state to Firestore (exclude huge binary blobs if any)
+        const syncPayload = {
+          updatedAt: state.lastSyncedAt,
+          documents: state.documents.slice(0, 25),
+          vocabulary: state.vocabulary,
+          notes: state.notes,
+          garden: state.garden,
+          readerSettings: state.readerSettings
+        };
+        await setDoc(profileRef, syncPayload, { merge: true });
+
+        state.syncQueue = [];
+        await persistAllStateToLocal();
+        updateSyncQueueBadge();
+        updateSyncUI('synced');
+        refreshAllViews();
+      } catch (err) {
+        console.warn('Firestore sync deferred:', err.message);
+        updateSyncUI('error');
+      }
+    }
+
+    window.manualSyncNow = async function () {
+      if (!navigator.onLine) {
+        showToast('Đang ngoại tuyến. Dữ liệu đã được lưu an toàn vào IndexedDB.', 'warning');
+        return;
+      }
+      if (!db || !currentUser) {
+        await persistAllStateToLocal();
+        showToast('Đã lưu toàn bộ dữ liệu cục bộ vào IndexedDB.', 'success');
+        return;
+      }
+      await syncWithFirestore();
+      showToast('Đã đồng bộ hai chiều với đám mây thành công!', 'success');
+    };
+
+    function updateSyncUI(status) {
+      const icon = document.getElementById('syncIcon');
+      if (!icon) return;
+      if (status === 'syncing') {
+        icon.className = 'fa-solid fa-arrows-rotate fa-spin text-goldLeaf';
+      } else if (status === 'synced') {
+        icon.className = 'fa-solid fa-cloud-check text-mossLight';
+      } else if (status === 'offline') {
+        icon.className = 'fa-solid fa-cloud-slash text-amber-400';
+      } else {
+        icon.className = 'fa-solid fa-hard-drive text-wisteria';
+      }
+    }
+
+    function updateSyncQueueBadge() {
+      const el = document.getElementById('syncQueueCount');
+      if (el) el.textContent = `${state.syncQueue.length} mục chờ`;
+    }
+
+    // Account Actions
+    window.handleAccountLogin = async function () {
+      const email = document.getElementById('authEmailInput').value.trim();
+      const pass = document.getElementById('authPasswordInput').value;
+      if (!email || !pass) return showToast('Vui lòng nhập đầy đủ email và mật khẩu.', 'warning');
+      if (!auth) return showToast('Dịch vụ xác thực đám mây chưa cấu hình. Đang dùng chế độ cục bộ.', 'info');
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        showToast('Đăng nhập thành công! Đang đồng bộ thư viện...', 'success');
+      } catch (e) {
+        showToast('Lỗi đăng nhập: ' + e.message, 'error');
+      }
+    };
+
+    window.handleAccountRegister = async function () {
+      const email = document.getElementById('authEmailInput').value.trim();
+      const pass = document.getElementById('authPasswordInput').value;
+      if (!email || pass.length < 6) return showToast('Mật khẩu cần tối thiểu 6 ký tự.', 'warning');
+      if (!auth) return showToast('Dịch vụ xác thực đám mây chưa cấu hình.', 'info');
+      try {
+        await createUserWithEmailAndPassword(auth, email, pass);
+        showToast('Đăng ký tài khoản thành công!', 'success');
+      } catch (e) {
+        showToast('Lỗi đăng ký: ' + e.message, 'error');
+      }
+    };
+
+    window.handlePasswordReset = async function () {
+      const email = document.getElementById('authEmailInput').value.trim();
+      if (!email) return showToast('Nhập email của bạn để nhận liên kết khôi phục mật khẩu.', 'warning');
+      if (!auth) return;
+      try {
+        await sendPasswordResetEmail(auth, email);
+        showToast('Đã gửi email khôi phục mật khẩu!', 'success');
+      } catch (e) {
+        showToast('Không thể gửi email: ' + e.message, 'error');
+      }
+    };
+
+    window.handleAccountLogout = async function () {
+      if (!auth) return;
+      await signOut(auth);
+      await signInAnonymously(auth);
+      showToast('Đã đăng xuất khỏi tài khoản.', 'info');
+    };
+
+    function updateAccountProfileUI() {
+      const emailEl = document.getElementById('profileEmailDisplay');
+      const uidEl = document.getElementById('profileUidDisplay');
+      const badgeEl = document.getElementById('authStateBadge');
+      const formsEl = document.getElementById('authFormsContainer');
+      const loggedActions = document.getElementById('loggedInActions');
+
+      if (currentUser && !currentUser.isAnonymous) {
+        emailEl.textContent = currentUser.email || 'Thành viên đã xác thực';
+        uidEl.textContent = currentUser.uid;
+        badgeEl.textContent = 'Đã đồng bộ đám mây';
+        formsEl.classList.add('hidden');
+        loggedActions.classList.remove('hidden');
+        loggedActions.classList.add('flex');
+      } else {
+        emailEl.textContent = 'Tài khoản cục bộ (IndexedDB)';
+        uidEl.textContent = currentUser ? currentUser.uid : 'local-indexeddb';
+        badgeEl.textContent = currentUser ? 'Phiên đám mây ẩn danh' : 'Lưu cục bộ';
+        formsEl.classList.remove('hidden');
+        loggedActions.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 6. DOCUMENT UPLOAD & PARSING (DOCX, TXT, EPUB) - PRESERVING STRUCTURE
+    // =========================================================================
+    window.handleDocumentUpload = async function (event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const maxMB = 25;
+      if (file.size > maxMB * 1024 * 1024) {
+        showToast(`Tệp vượt quá giới hạn ${maxMB}MB.`, 'error');
+        return;
+      }
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const baseTitle = file.name.replace(/\.[^/.]+$/, '');
+      showToast(`Đang xử lý tệp "${file.name}"...`, 'info');
+
+      try {
+        let chapters = [];
+
+        if (ext === 'txt') {
+          const text = await file.text();
+          chapters = parsePlainTextIntoChapters(text, baseTitle);
+        } else if (ext === 'docx') {
+          if (typeof mammoth === 'undefined') {
+            throw new Error('Thư viện đọc DOCX chưa sẵn sàng.');
+          }
+          const arrayBuffer = await file.arrayBuffer();
+          // Extract HTML to preserve headings (H1/H2/H3) and exact paragraph order
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          chapters = parseHtmlStructureIntoChapters(result.value, baseTitle);
+        } else if (ext === 'epub') {
+          if (typeof JSZip === 'undefined') {
+            throw new Error('Thư viện giải nén EPUB chưa sẵn sàng.');
+          }
+          const zip = await JSZip.loadAsync(file);
+          const htmlFiles = Object.keys(zip.files)
+            .filter(name => (name.endsWith('.xhtml') || name.endsWith('.html')) && !name.includes('nav') && !name.includes('toc'))
+            .sort();
+          for (let i = 0; i < htmlFiles.length; i++) {
+            const content = await zip.files[htmlFiles[i]].async('string');
+            const parsed = parseHtmlStructureIntoChapters(content, `Phần ${i + 1}`);
+            chapters.push(...parsed);
+          }
+        } else if (ext === 'pdf') {
+          showToast('Tệp PDF phức tạp có thể làm mất thứ tự dòng. Khuyên dùng DOCX/EPUB hoặc dán văn bản.', 'warning');
+          const rawBytes = new Uint8Array(await file.arrayBuffer());
+          const decoder = new TextDecoder('utf-8', { fatal: false });
+          const fallbackText = decoder.decode(rawBytes).replace(/[^\uAC00-\uD7A3\s.,!?'"()0-9a-zA-Z\n]/g, ' ');
+          chapters = parsePlainTextIntoChapters(fallbackText, baseTitle);
+        } else {
+          showToast('Định dạng không hỗ trợ. Vui lòng chọn DOCX, TXT hoặc EPUB.', 'error');
+          return;
+        }
+
+        if (!chapters.length || chapters.every(c => c.paragraphs.length === 0)) {
+          showToast('Không tìm thấy nội dung văn bản hợp lệ trong tệp.', 'error');
+          return;
+        }
+
+        const newDoc = {
+          id: 'doc-' + Date.now(),
+          title: baseTitle,
+          author: 'Tài liệu tải lên',
+          genre: ext.toUpperCase(),
+          status: 'unread',
+          favorite: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          progress: {
+            chapterIdx: 0,
+            paragraphIdx: 0,
+            scrollTop: 0,
+            percent: 0,
+            readingSeconds: 0,
+            lookupCount: 0
+          },
+          chapters
+        };
+
+        state.documents.unshift(newDoc);
+        await queueCloudSync('documents');
+        renderLibrary();
+        showToast(`Đã nhập "${baseTitle}" (${chapters.length} phần) giữ nguyên cấu trúc gốc!`, 'success');
+        openDocumentInReader(newDoc.id);
+      } catch (err) {
+        console.error(err);
+        showToast('Lỗi đọc tệp: ' + err.message, 'error');
+      } finally {
+        event.target.value = '';
+      }
+    };
+
+    function parsePlainTextIntoChapters(rawText, defaultTitle) {
+      // Preserve exact original paragraphs without altering content
+      const lines = rawText.replace(/\r\n/g, '\n').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const chapters = [];
+      let currentChap = { title: defaultTitle, paragraphs: [] };
+      const chapterRegex = /^(제\s*\d+\s*[장화편회]|Chapter\s+\d+|Chương\s+\d+|\d+\.)/i;
+
+      for (const line of lines) {
+        if (chapterRegex.test(line) && line.length < 80 && currentChap.paragraphs.length > 0) {
+          chapters.push(currentChap);
+          currentChap = { title: line, paragraphs: [] };
+        } else {
+          currentChap.paragraphs.push(line);
+        }
+      }
+      if (currentChap.paragraphs.length > 0) {
+        chapters.push(currentChap);
+      }
+      return chapters;
+    }
+
+    function parseHtmlStructureIntoChapters(htmlString, defaultTitle) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlString, 'text/html');
+      const blocks = doc.body.querySelectorAll('h1, h2, h3, p, li');
+      const chapters = [];
+      let currentChap = { title: defaultTitle, paragraphs: [] };
+
+      blocks.forEach(el => {
+        const text = el.textContent.replace(/\s+/g, ' ').trim();
+        if (!text) return;
+        const tag = el.tagName.toLowerCase();
+        if ((tag === 'h1' || tag === 'h2') && currentChap.paragraphs.length > 0) {
+          chapters.push(currentChap);
+          currentChap = { title: text, paragraphs: [] };
+        } else if (tag === 'h1' || tag === 'h2') {
+          currentChap.title = text;
+        } else {
+          currentChap.paragraphs.push(text);
+        }
+      });
+
+      if (currentChap.paragraphs.length > 0) {
+        chapters.push(currentChap);
+      }
+      return chapters;
+    }
+
+    // Paste Text Modal Helpers
+    window.openPasteTextModal = () => document.getElementById('pasteTextModal').classList.remove('hidden');
+    window.closePasteTextModal = () => document.getElementById('pasteTextModal').classList.add('hidden');
+    window.savePastedDocument = async function () {
+      const title = document.getElementById('pasteDocTitle').value.trim() || 'Văn bản tiếng Hàn ' + new Date().toLocaleDateString('vi-VN');
+      const genre = document.getElementById('pasteDocGenre').value.trim() || 'Tản văn';
+      const content = document.getElementById('pasteDocContent').value.trim();
+      if (!content) return showToast('Vui lòng nhập nội dung tiếng Hàn.', 'warning');
+
+      const chapters = parsePlainTextIntoChapters(content, title);
+      const newDoc = {
+        id: 'doc-' + Date.now(),
+        title,
+        author: 'Sưu tầm cá nhân',
+        genre,
+        status: 'unread',
+        favorite: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        progress: { chapterIdx: 0, paragraphIdx: 0, scrollTop: 0, percent: 0, readingSeconds: 0, lookupCount: 0 },
+        chapters
+      };
+      state.documents.unshift(newDoc);
+      await queueCloudSync('documents');
+      closePasteTextModal();
+      document.getElementById('pasteDocTitle').value = '';
+      document.getElementById('pasteDocContent').value = '';
+      renderLibrary();
+      openDocumentInReader(newDoc.id);
+    };
+
+    // =========================================================================
+    // 7. LIBRARY RENDERING & MANAGEMENT
+    // =========================================================================
+    window.renderLibrary = function () {
+      const grid = document.getElementById('libraryGrid');
+      const query = (document.getElementById('libSearchInput')?.value || '').toLowerCase();
+      const statusFilter = document.getElementById('libStatusFilter')?.value || 'all';
+      const sortBy = document.getElementById('libSortSelect')?.value || 'recent';
+
+      let filtered = state.documents.filter(doc => {
+        const matchesQuery = doc.title.toLowerCase().includes(query) || (doc.genre || '').toLowerCase().includes(query);
+        if (!matchesQuery) return false;
+        if (statusFilter === 'favorite') return doc.favorite;
+        if (statusFilter !== 'all') return doc.status === statusFilter;
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (sortBy === 'title') return a.title.localeCompare(b.title);
+        if (sortBy === 'progress') return (b.progress?.percent || 0) - (a.progress?.percent || 0);
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full botanical-card rounded-2xl p-8 text-center text-stone-400">Không tìm thấy tài liệu phù hợp. Hãy tải lên tệp DOCX/TXT/EPUB mới!</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map(doc => {
+        const pct = doc.progress?.percent || 0;
+        const totalParas = doc.chapters.reduce((acc, c) => acc + c.paragraphs.length, 0);
+        const statusMap = {
+          reading: { label: 'Đang đọc', cls: 'bg-moss/25 text-mossLight border-mossLight/30' },
+          unread: { label: 'Chưa đọc', cls: 'bg-stone-800 text-stone-300 border-stone-600' },
+          completed: { label: 'Đã hoàn thành', cls: 'bg-wisteria/20 text-wisteriaGlow border-wisteria/30' }
+        };
+        const st = statusMap[doc.status] || statusMap.unread;
+
+        return `
+          <div class="botanical-card rounded-2xl p-5 flex flex-col justify-between gap-4 transition group">
+            <div class="space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-[11px] px-2.5 py-0.5 rounded-full border ${st.cls}">${st.label}</span>
+                <div class="flex items-center gap-1">
+                  <button onclick="toggleDocFavorite('${doc.id}')" class="p-1.5 rounded-lg hover:bg-white/10 ${doc.favorite ? 'text-amber-400' : 'text-stone-500'}" title="Đánh dấu yêu thích">
+                    <i class="fa-${doc.favorite ? 'solid' : 'regular'} fa-star"></i>
+                  </button>
+                  <button onclick="deleteDocument('${doc.id}')" class="p-1.5 rounded-lg hover:bg-red-950/60 text-stone-500 hover:text-red-400" title="Xóa tài liệu">
+                    <i class="fa-regular fa-trash-can"></i>
+                  </button>
+                </div>
+              </div>
+
+              <h3 onclick="openDocumentInReader('${doc.id}')" class="font-krSerif text-lg font-bold text-parchment group-hover:text-goldLeaf cursor-pointer line-clamp-2 transition">
+                ${escapeHtml(doc.title)}
+              </h3>
+              <div class="text-xs text-stone-400 flex items-center gap-2">
+                <span><i class="fa-solid fa-tag mr-1 text-wisteria"></i>${escapeHtml(doc.genre || 'Văn học')}</span>
+                <span>•</span>
+                <span>${doc.chapters.length} phần • ${totalParas} đoạn</span>
+              </div>
+            </div>
+
+            <div class="space-y-3 pt-2 border-t border-goldLeaf/10">
+              <div>
+                <div class="flex justify-between text-[11px] text-stone-400 mb-1">
+                  <span>Tiến độ đọc</span>
+                  <span class="text-parchment font-semibold">${pct}%</span>
+                </div>
+                <div class="w-full h-1.5 bg-charcoal rounded-full overflow-hidden">
+                  <div class="h-full bg-gradient-to-r from-mossLight to-wisteria transition-all" style="width: ${pct}%"></div>
+                </div>
+              </div>
+
+              <button onclick="openDocumentInReader('${doc.id}')" class="w-full py-2.5 rounded-xl bg-charcoal hover:bg-moss text-parchment text-xs font-semibold border border-goldLeaf/20 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-book-open"></i> ${pct > 0 ? 'Đọc tiếp từ vị trí đã lưu' : 'Bắt đầu đọc'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    };
+
+    window.toggleDocFavorite = async function (docId) {
+      const d = state.documents.find(x => x.id === docId);
+      if (!d) return;
+      d.favorite = !d.favorite;
+      d.updatedAt = Date.now();
+      await queueCloudSync('documents');
+      renderLibrary();
+    };
+
+    window.deleteDocument = async function (docId) {
+      if (state.documents.length <= 1) {
+        showToast('Cần giữ lại ít nhất 1 tài liệu trong thư viện.', 'warning');
+        return;
+      }
+      state.documents = state.documents.filter(x => x.id !== docId);
+      if (state.currentDocId === docId) state.currentDocId = state.documents[0].id;
+      await queueCloudSync('documents');
+      renderLibrary();
+      showToast('Đã xóa tài liệu khỏi thư viện.', 'info');
+    };
+
+    // =========================================================================
+    // 8. INTERACTIVE KOREAN READER: TAP WORD, LONG-PRESS SENTENCE, DRAG SELECT
+    // =========================================================================
+    window.openDocumentInReader = function (docId) {
+      const doc = state.documents.find(d => d.id === docId) || state.documents[0];
+      if (!doc) return;
+      state.currentDocId = doc.id;
+      state.currentChapterIdx = doc.progress?.chapterIdx || 0;
+      if (doc.status === 'unread') doc.status = 'reading';
+
+      switchTab('reader');
+      renderReaderChapter();
+
+      // Restore previous scroll position smoothly
+      setTimeout(() => {
+        if (doc.progress?.scrollTop) {
+          window.scrollTo({ top: doc.progress.scrollTop, behavior: 'smooth' });
+        }
+      }, 100);
+    };
+
+    window.exitReaderToLibrary = function () {
+      if (state.isFullscreen) toggleDistractionFreeMode();
+      closeWordPopover();
+      closeSentenceSheet();
+      switchTab('library');
+    };
+
+    function renderReaderChapter() {
+      const doc = state.documents.find(d => d.id === state.currentDocId);
+      if (!doc) return;
+
+      const chapIdx = Math.min(state.currentChapterIdx, doc.chapters.length - 1);
+      state.currentChapterIdx = chapIdx;
+      const chapter = doc.chapters[chapIdx];
+
+      document.getElementById('readerDocTitle').textContent = doc.title;
+      document.getElementById('readerChapterInfo').textContent = chapter.title || `Phần ${chapIdx + 1}`;
+      document.getElementById('chapterFooterLabel').textContent = `Phần ${chapIdx + 1} / ${doc.chapters.length}`;
+      document.getElementById('prevChapterBtn').disabled = chapIdx === 0;
+      document.getElementById('nextChapterBtn').disabled = chapIdx >= doc.chapters.length - 1;
+
+      const savedSet = new Set(state.vocabulary.map(v => v.lemma));
+      const notedTargets = new Set(state.notes.filter(n => n.docId === doc.id).map(n => n.targetText));
+
+      const contentEl = document.getElementById('readerContentArea');
+      let html = `<h2 class="font-krSerif text-xl sm:text-2xl font-bold pb-3 mb-4 border-b border-goldLeaf/20">${escapeHtml(chapter.title)}</h2>`;
+
+      chapter.paragraphs.forEach((para, pIdx) => {
+        // Split paragraph into sentences accurately while preserving punctuation
+        const sentences = splitKoreanSentences(para);
+        const sentencesHtml = sentences.map((sent, sIdx) => {
+          // Split sentence into tokens preserving spaces
+          const tokens = sent.split(/(\s+)/);
+          const tokensHtml = tokens.map(tok => {
+            if (/^\s+$/.test(tok)) return tok;
+            const clean = tok.replace(/^[^\uAC00-\uD7A3]+|[^\uAC00-\uD7A3]+$/g, '');
+            const morph = clean ? analyzeKoreanMorphology(clean) : null;
+            const isSaved = morph && savedSet.has(morph.lemma);
+            const hasNote = notedTargets.has(clean) || notedTargets.has(sent.trim());
+            return `<span class="kr-word ${isSaved ? 'word-saved' : ''} ${hasNote ? 'word-has-note' : ''}" data-word="${escapeHtml(tok)}">${escapeHtml(tok)}</span>`;
+          }).join('');
+
+          return `<span class="kr-sentence" data-pidx="${pIdx}" data-sidx="${sIdx}" data-sentence="${escapeHtml(sent.trim())}">${tokensHtml}</span>`;
+        }).join('');
+
+        html += `<p class="kr-paragraph" data-pidx="${pIdx}" style="margin-bottom: ${state.readerSettings.paraGap}px;">${sentencesHtml}</p>`;
+      });
+
+      contentEl.innerHTML = html;
+      applyReaderTypographyStyles();
+      updateDocumentProgressPercent();
+    }
+
+    function splitKoreanSentences(paragraph) {
+      // Splits on . ! ? followed by space or end, keeping quotes intact
+      const matches = paragraph.match(/[^.!?]+[.!?]+["'”’]?|[^.!?]+$/g);
+      return matches ? matches : [paragraph];
+    }
+
+    window.changeChapter = function (delta) {
+      const doc = state.documents.find(d => d.id === state.currentDocId);
+      if (!doc) return;
+      const nextIdx = state.currentChapterIdx + delta;
+      if (nextIdx >= 0 && nextIdx < doc.chapters.length) {
+        state.currentChapterIdx = nextIdx;
+        doc.progress.chapterIdx = nextIdx;
+        doc.progress.scrollTop = 0;
+        if (nextIdx === doc.chapters.length - 1) {
+          doc.status = 'completed';
+        }
+        closeWordPopover();
+        closeSentenceSheet();
+        renderReaderChapter();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        queueCloudSync('documents');
+      }
+    };
+
+    // =========================================================================
+    // 9. GESTURE CONFLICT RESOLUTION: TAP WORD vs LONG-PRESS SENTENCE vs DRAG SELECT
+    // =========================================================================
+    let pressTimer = null;
+    let pressStartX = 0;
+    let pressStartY = 0;
+    let longPressTriggered = false;
+    let isDraggingSelection = false;
+
+    const readerContentArea = document.getElementById('readerContentArea');
+
+    readerContentArea.addEventListener('pointerdown', (e) => {
+      // Only handle primary touch/left click
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      pressStartX = e.clientX;
+      pressStartY = e.clientY;
+      longPressTriggered = false;
+      isDraggingSelection = false;
+
+      const sentenceEl = e.target.closest('.kr-sentence');
+      if (!sentenceEl) return;
+
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        // Check that user hasn't dragged finger/mouse and hasn't highlighted text
+        const selText = window.getSelection()?.toString().trim();
+        if (!isDraggingSelection && (!selText || selText.length < 3)) {
+          longPressTriggered = true;
+          // Haptic feedback on Android if supported
+          if (navigator.vibrate) navigator.vibrate(25);
+          triggerSentenceLongPress(sentenceEl);
+        }
+      }, 520); // 520ms threshold distinguishes deliberate long-press from quick tap or drag
+    });
+
+    readerContentArea.addEventListener('pointermove', (e) => {
+      const dist = Math.hypot(e.clientX - pressStartX, e.clientY - pressStartY);
+      if (dist > 10) {
+        isDraggingSelection = true;
+        clearTimeout(pressTimer);
+      }
+    });
+
+    readerContentArea.addEventListener('pointerup', (e) => {
+      clearTimeout(pressTimer);
+      if (longPressTriggered) {
+        e.preventDefault();
+        return;
+      }
+
+      // Check if user completed a drag text selection
+      setTimeout(() => {
+        const selection = window.getSelection();
+        const selectedStr = selection ? selection.toString().trim() : '';
+        if (selectedStr.length > 0 && isDraggingSelection) {
+          showSelectionFloatingToolbar(selection, selectedStr);
+          return;
+        }
+
+        // Otherwise, if not dragging and tapped on a Korean word -> Open contextual Word Dictionary
+        if (!isDraggingSelection) {
+          hideSelectionToolbar();
+          const wordEl = e.target.closest('.kr-word');
+          if (wordEl) {
+            handleWordTap(wordEl);
+          }
+        }
+      }, 20);
+    });
+
+    // Also listen to selectionchange for Android native selection handles
+    document.addEventListener('selectionchange', () => {
+      if (state.activeTab !== 'reader') return;
+      const selection = window.getSelection();
+      const str = selection ? selection.toString().trim() : '';
+      if (str.length >= 2) {
+        showSelectionFloatingToolbar(selection, str);
+      } else {
+        hideSelectionToolbar();
+      }
+    });
+
+    function showSelectionFloatingToolbar(selection, text) {
+      if (!selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+
+      const toolbar = document.getElementById('selectionToolbar');
+      toolbar.dataset.selectedText = text;
+      toolbar.classList.remove('hidden');
+
+      const topPos = Math.max(12, rect.top - 52);
+      const leftPos = Math.min(window.innerWidth - 310, Math.max(12, rect.left + rect.width / 2 - 140));
+      toolbar.style.top = `${topPos}px`;
+      toolbar.style.left = `${leftPos}px`;
+    }
+
+    function hideSelectionToolbar() {
+      document.getElementById('selectionToolbar').classList.add('hidden');
+    }
+
+    window.handleSelectionAction = function (action) {
+      const text = document.getElementById('selectionToolbar').dataset.selectedText || window.getSelection()?.toString().trim();
+      if (!text) return;
+      hideSelectionToolbar();
+
+      if (action === 'translate') {
+        openSentenceSheetWithText(text, state.appConfig.defaultTranslateMode, true);
+      } else if (action === 'grammar') {
+        openSentenceSheetWithText(text, 'grammar', true);
+      } else if (action === 'speak') {
+        speakKoreanText(text);
+      } else if (action === 'copy') {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Đã sao chép văn bản đã chọn.', 'success');
+      } else if (action === 'save') {
+        saveCustomPhraseToNotebook(text);
+      }
+    };
+
+    // =========================================================================
+    // 10. WORD DICTIONARY POPOVER & MORPHOLOGY + AI DEEP EXPLANATION
+    // =========================================================================
+    let currentPopoverWordData = null;
+
+    function handleWordTap(wordEl) {
+      // Clear previous highlights
+      document.querySelectorAll('.kr-word.word-active').forEach(el => el.classList.remove('word-active'));
+      wordEl.classList.add('word-active');
+
+      const rawWord = wordEl.dataset.word || wordEl.textContent;
+      const sentenceEl = wordEl.closest('.kr-sentence');
+      const contextSentence = sentenceEl ? sentenceEl.dataset.sentence : '';
+
+      const analysis = analyzeKoreanMorphology(rawWord);
+      if (!analysis) return;
+
+      // Track valid unique lookup for Sun Seed reward (10 unique lookups = 1 Sun Seed)
+      registerValidWordLookup(analysis.lemma);
+
+      currentPopoverWordData = {
+        ...analysis,
+        contextSentence
+      };
+
+      populateWordPopover(currentPopoverWordData);
+      positionPopoverNearElement(wordEl);
+    }
+
+    function positionPopoverNearElement(targetEl) {
+      const pop = document.getElementById('wordPopover');
+      pop.classList.remove('hidden');
+
+      const rect = targetEl.getBoundingClientRect();
+      const popRect = pop.getBoundingClientRect();
+      const margin = 12;
+
+      // Place below word if space permits; otherwise place above word so it NEVER covers the sentence!
+      let top = rect.bottom + 10;
+      if (top + popRect.height > window.innerHeight - 65) {
+        top = Math.max(12, rect.top - popRect.height - 10);
+      }
+
+      let left = rect.left;
+      if (left + popRect.width > window.innerWidth - margin) {
+        left = window.innerWidth - popRect.width - margin;
+      }
+      left = Math.max(margin, left);
+
+      pop.style.top = `${top}px`;
+      pop.style.left = `${left}px`;
+    }
+
+    function populateWordPopover(data) {
+      const { surface, lemma, breakdown, entry, contextSentence } = data;
+      document.getElementById('popSurfaceWord').textContent = surface;
+      document.getElementById('popLemmaWord').textContent = lemma;
+      document.getElementById('popMorphologyBox').textContent = breakdown;
+
+      // Official Naver Dictionary Link (No unauthorized scraping)
+      const naverUrl = `https://korean.dict.naver.com/kovidict/#/search?query=${encodeURIComponent(lemma)}`;
+      document.getElementById('popNaverLink').href = naverUrl;
+
+      const aiSection = document.getElementById('popAiSection');
+      aiSection.classList.add('hidden');
+
+      // Check if AI cache already has explanation for this word + context
+      const cacheKey = `word:${lemma}:${contextSentence}`;
+      if (state.aiCache[cacheKey]) {
+        aiSection.classList.remove('hidden');
+        document.getElementById('popAiContent').innerHTML = state.aiCache[cacheKey];
+      }
+
+      if (entry) {
+        document.getElementById('popSourceIndicator').innerHTML = `<i class="fa-solid fa-database text-mossLight"></i> Nguồn: Từ điển Hàn-Việt Ngoại tuyến (${entry.pack})`;
+        document.getElementById('popPosBadge').textContent = entry.pos;
+        document.getElementById('popPronunciation').textContent = entry.pronunciation;
+        document.getElementById('popHanja').textContent = entry.hanja ? `[${entry.hanja}]` : '';
+        document.getElementById('popMeaningVi').textContent = entry.meaningVi;
+        document.getElementById('popGrammarDetail').textContent = entry.grammar;
+        document.getElementById('popExampleKr').textContent = entry.exampleKr;
+        document.getElementById('popExampleVi').textContent = entry.exampleVi;
+
+        if (entry.synonyms?.length) {
+          document.getElementById('popSynonymsBox').classList.remove('hidden');
+          document.getElementById('popSynonyms').textContent = entry.synonyms.join(', ');
+        } else {
+          document.getElementById('popSynonymsBox').classList.add('hidden');
+        }
+
+        if (entry.antonyms?.length) {
+          document.getElementById('popAntonymsBox').classList.remove('hidden');
+          document.getElementById('popAntonyms').textContent = entry.antonyms.join(', ');
+        } else {
+          document.getElementById('popAntonymsBox').classList.add('hidden');
+        }
+      } else {
+        document.getElementById('popSourceIndicator').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Chưa có trong gói ngoại tuyến — Bấm "Giải thích AI sâu"`;
+        document.getElementById('popPosBadge').textContent = 'Phân tích hình thái';
+        document.getElementById('popPronunciation').textContent = '';
+        document.getElementById('popHanja').textContent = '';
+        document.getElementById('popMeaningVi').innerHTML = `<span class="text-amber-300 text-xs">Từ "<strong>${escapeHtml(lemma)}</strong>" chưa có trong kho từ điển ngoại tuyến đã tải. Bạn có thể nhấn <strong>Giải thích AI sâu</strong> (khi có mạng) hoặc mở mục từ gốc trên <strong>Naver</strong>.</span>`;
+        document.getElementById('popGrammarDetail').textContent = breakdown;
+        document.getElementById('popExampleKr').textContent = contextSentence;
+        document.getElementById('popExampleVi').textContent = '(Ngữ cảnh hiện tại trong truyện)';
+        document.getElementById('popSynonymsBox').classList.add('hidden');
+        document.getElementById('popAntonymsBox').classList.add('hidden');
+      }
+
+      // Update Bookmark icon state
+      const isAlreadySaved = state.vocabulary.some(v => v.lemma === lemma);
+      const saveBtn = document.getElementById('popSaveWordBtn');
+      saveBtn.innerHTML = isAlreadySaved
+        ? '<i class="fa-solid fa-bookmark text-goldLeaf"></i>'
+        : '<i class="fa-regular fa-bookmark"></i>';
+    }
+
+    window.closeWordPopover = function () {
+      document.getElementById('wordPopover').classList.add('hidden');
+      document.querySelectorAll('.kr-word.word-active').forEach(el => el.classList.remove('word-active'));
+    };
+
+    // Deep AI Explanation for Word in Context (Honest Online/Offline Check)
+    window.triggerDeepAIWordAnalysis = async function () {
+      if (!currentPopoverWordData) return;
+      if (!navigator.onLine) {
+        showToast('Đang ngoại tuyến: Không thể gọi AI trực tuyến. Hãy xem dữ liệu từ điển ngoại tuyến hoặc bộ nhớ đệm.', 'warning');
+        return;
+      }
+
+      const { surface, lemma, contextSentence } = currentPopoverWordData;
+      const cacheKey = `word:${lemma}:${contextSentence}`;
+      const aiSection = document.getElementById('popAiSection');
+      const aiContent = document.getElementById('popAiContent');
+
+      aiSection.classList.remove('hidden');
+      aiContent.innerHTML = `<div class="flex items-center gap-2 text-wisteriaGlow"><i class="fa-solid fa-spinner fa-spin"></i> AI đang phân tích sắc thái từ "${escapeHtml(surface)}" trong ngữ cảnh câu...</div>`;
+
+      const systemPrompt = `Bạn là chuyên gia ngôn ngữ Hàn-Việt và dịch giả văn học. Hãy giải thích ngắn gọn, chính xác từ tiếng Hàn được hỏi trong câu ngữ cảnh bằng tiếng Việt. Trình bày rõ: 1) Nghĩa chính xác trong ngữ cảnh, 2) Hán Hàn (nếu có), 3) Phân tích biến đổi hình thái/ngữ pháp, 4) Sắc thái biểu đạt văn học. Không bịa nghĩa nếu thiếu ngữ cảnh.`;
+      const userPrompt = `Từ được chọn: "${surface}" (Nguyên thể dự đoán: "${lemma}").\nCâu ngữ cảnh: "${contextSentence}".\nTrình độ người học: ${state.appConfig.learnerLevel}.`;
+
+      try {
+        const responseText = await callGeminiAI(systemPrompt, userPrompt);
+        const formatted = formatMarkdownSimple(responseText);
+        aiContent.innerHTML = formatted;
+        state.aiCache[cacheKey] = formatted;
+        await idbSet('aiCache', state.aiCache);
+      } catch (err) {
+        aiContent.innerHTML = `<div class="text-red-300">Không thể kết nối AI: ${escapeHtml(err.message)}. <button onclick="triggerDeepAIWordAnalysis()" class="underline ml-1">Thử lại</button></div>`;
+      }
+    };
+
+    // =========================================================================
+    // 11. LONG-PRESS SENTENCE & MULTI-SENTENCE TRANSLATION SHEET
+    // =========================================================================
+    let currentSelectedSentenceText = '';
+    let currentTranslationMode = 'literary';
+
+    function triggerSentenceLongPress(sentenceEl) {
+      closeWordPopover();
+      document.querySelectorAll('.kr-sentence.sentence-active').forEach(el => el.classList.remove('sentence-active'));
+      sentenceEl.classList.add('sentence-active');
+
+      const sentenceText = sentenceEl.dataset.sentence || sentenceEl.textContent.trim();
+      openSentenceSheetWithText(sentenceText, state.appConfig.defaultTranslateMode, false);
+    }
+
+    window.openSentenceSheetWithText = async function (text, mode = 'literary', isMultiSelection = false) {
+      currentSelectedSentenceText = text;
+      currentTranslationMode = mode;
+
+      const sheet = document.getElementById('sentenceSheet');
+      sheet.classList.remove('hidden');
+      document.getElementById('sheetHeaderTitle').textContent = isMultiSelection
+        ? 'Dịch Đối Chiếu & Phân Tích Đoạn Chọn'
+        : 'Dịch & Phân Tích Nguyên Câu';
+      document.getElementById('sheetOriginalKr').textContent = text;
+
+      // Update mode pill active styles
+      document.querySelectorAll('.mode-pill').forEach(btn => {
+        if (btn.dataset.mode === mode) {
+          btn.className = 'mode-pill px-2.5 py-1 rounded-lg bg-wisteria/30 text-parchment font-semibold shrink-0 border border-wisteria/50';
+        } else {
+          btn.className = 'mode-pill px-2.5 py-1 rounded-lg bg-obsidian text-stone-400 hover:text-parchment shrink-0';
+        }
+      });
+
+      const resultBox = document.getElementById('sentenceSheetResult');
+      const cacheKey = `sent:${mode}:${text}`;
+
+      if (state.aiCache[cacheKey]) {
+        resultBox.innerHTML = state.aiCache[cacheKey];
+        return;
+      }
+
+      if (!navigator.onLine) {
+        resultBox.innerHTML = `
+          <div class="bg-amber-950/50 border border-amber-500/30 rounded-xl p-3 text-xs text-amber-200">
+            <i class="fa-solid fa-wifi-slash mr-1"></i> <strong>Đang ngoại tuyến:</strong> Hệ thống không chạy mô hình AI dịch câu cục bộ giả lập. Vui lòng kết nối Internet để dịch câu mới, hoặc chạm từng từ để tra từ điển ngoại tuyến.
+          </div>`;
+        return;
+      }
+
+      resultBox.innerHTML = `
+        <div class="flex items-center gap-2.5 text-wisteriaGlow text-xs py-4">
+          <i class="fa-solid fa-circle-notch fa-spin text-base"></i>
+          <span>AI đang dịch (${getModeLabel(mode)}) và phân tích cấu trúc ngữ pháp tiếng Hàn...</span>
+        </div>`;
+
+      const modeInstructions = {
+        literary: 'Dịch văn học sang tiếng Việt giàu cảm xúc, giữ nhịp điệu truyện; kèm bản dịch sát nghĩa, phân tích ngữ pháp chính, từ vựng đáng chú ý và sắc thái câu.',
+        natural: 'Dịch tự nhiên, trôi chảy sang tiếng Việt; kèm bản dịch sát nghĩa và giải thích cấu trúc ngữ pháp cốt lõi.',
+        literal: 'Dịch sát nghĩa từng thành phần (Chủ ngữ - Bổ ngữ - Vị ngữ) để người học thấy rõ trật tự từ tiếng Hàn.',
+        grammar: 'Phân tích chi tiết từng thành phần câu (주어 Chủ ngữ, 목적어 Tân ngữ, 서술어 Vị ngữ, 관형어 Định ngữ, 부사어 Trạng ngữ), đuôi câu và kính ngữ.'
+      };
+
+      const sentencesInSelection = splitKoreanSentences(text);
+      const multiSentenceRule = sentencesInSelection.length > 1
+        ? `Người dùng chọn ${sentencesInSelection.length} câu. BẮT BUỘC giữ đúng thứ tự từng câu, không bỏ sót hay gộp câu, trình bày bản dịch đối chiếu từng câu (Câu 1, Câu 2...) rõ ràng.`
+        : '';
+
+      const systemPrompt = `Bạn là trợ lý dịch thuật văn học và giảng viên tiếng Hàn chuyên sâu (trình độ người học: ${state.appConfig.learnerLevel}).
+Nhiệm vụ: ${modeInstructions[mode] || modeInstructions.literary}
+${multiSentenceRule}
+Trình bày rõ ràng bằng tiếng Việt với các mục ngắn gọn:
+- **Bản dịch tiếng Việt:**
+- **Dịch sát nghĩa:**
+- **Phân tích ngữ pháp & thành phần câu:**
+- **Từ vựng & Sắc thái biểu đạt:**
+Không tự bịa đặt thông tin ngoài văn bản.`;
+
+      try {
+        const aiText = await callGeminiAI(systemPrompt, `Văn bản tiếng Hàn cần xử lý:\n"${text}"`);
+        const html = `<div class="bg-charcoal/80 border border-wisteria/25 rounded-xl p-3.5 text-xs text-parchment leading-relaxed space-y-2">${formatMarkdownSimple(aiText)}</div>`;
+        resultBox.innerHTML = html;
+        state.aiCache[cacheKey] = html;
+        await idbSet('aiCache', state.aiCache);
+      } catch (err) {
+        resultBox.innerHTML = `
+          <div class="bg-red-950/50 border border-red-500/30 rounded-xl p-3 text-xs text-red-200 flex items-center justify-between">
+            <span>Lỗi kết nối AI: ${escapeHtml(err.message)}</span>
+            <button onclick="retranslateSentenceWithMode('${mode}')" class="px-2.5 py-1 rounded bg-red-900 text-parchment font-semibold">Thử lại</button>
+          </div>`;
+      }
+    };
+
+    window.retranslateSentenceWithMode = function (mode) {
+      if (currentSelectedSentenceText) {
+        openSentenceSheetWithText(currentSelectedSentenceText, mode, splitKoreanSentences(currentSelectedSentenceText).length > 1);
+      }
+    };
+
+    window.closeSentenceSheet = function () {
+      document.getElementById('sentenceSheet').classList.add('hidden');
+      document.querySelectorAll('.kr-sentence.sentence-active').forEach(el => el.classList.remove('sentence-active'));
+    };
+
+    function getModeLabel(mode) {
+      return { literary: 'Văn học', natural: 'Tự nhiên', literal: 'Sát nghĩa', grammar: 'Ngữ pháp' }[mode] || 'Văn học';
+    }
+
+    // =========================================================================
+    // 12. GEMINI API INTEGRATION (WITH EXPONENTIAL BACKOFF & CACHING)
+    // =========================================================================
+    async function callGeminiAI(systemPrompt, userQuery) {
+      const apiKey = state.appConfig.geminiApiKey || "";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: userQuery }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+      };
+
+      const delays = [1000, 2000, 4000];
+      for (let attempt = 0; attempt <= delays.length; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const data = await res.json();
+          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!text) throw new Error('Phản hồi AI trống');
+          return text;
+        } catch (err) {
+          if (attempt === delays.length) throw err;
+          await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+      }
+    }
+
+    // =========================================================================
+    // 13. VALID READING TIMER, WATER DROPS, SUN SEEDS & 6-PLANT BOTANICAL GARDEN
+    // =========================================================================
+    const GARDEN_PLANTS_CATALOG = [
+      {
+        id: 'primrose',
+        name: 'Hoa Anh Thảo',
+        krName: '앵초 (Primrose)',
+        desc: 'Loài hoa mở đầu khu vườn tri thức, tượng trưng cho những trang sách đầu tiên.',
+        unlockDesc: 'Mở khóa mặc định',
+        color: '#F4A261',
+        accent: '#E76F51',
+        unlockCondition: () => true
+      },
+      {
+        id: 'rose',
+        name: 'Hoa Hồng Cổ Điển',
+        krName: '장미 (Rose)',
+        desc: 'Biểu tượng của niềm đam mê văn chương và sự kiên trì mỗi ngày.',
+        unlockDesc: 'Mở khóa khi lưu 5 từ vào sổ tay',
+        color: '#E63946',
+        accent: '#FF758F',
+        unlockCondition: () => state.vocabulary.length >= 5
+      },
+      {
+        id: 'clover',
+        name: 'Cỏ Bốn Lá',
+        krName: '네잎클로버 (Four-Leaf Clover)',
+        desc: 'Mang lại may mắn và sự tinh tế khi nắm bắt các cấu trúc ngữ pháp khó.',
+        unlockDesc: 'Mở khóa sau 10 phút đọc hợp lệ',
+        color: '#52B788',
+        accent: '#95D5B2',
+        unlockCondition: () => state.garden.totalValidMinutes >= 10
+      },
+      {
+        id: 'cherry',
+        name: 'Hoa Anh Đào',
+        krName: '벚꽃 (Cherry Blossom)',
+        desc: 'Vẻ đẹp thanh khiết của mùa xuân trên từng trang tiểu thuyết Hàn Quốc.',
+        unlockDesc: 'Mở khóa khi trồng xong Hoa Anh Thảo (Nở hoa)',
+        color: '#FFB5A7',
+        accent: '#FCD5CE',
+        unlockCondition: () => state.garden.plants.primrose.stage >= 5
+      },
+      {
+        id: 'paulownia',
+        name: 'Cây Ngô Đồng',
+        krName: '오동나무 (Paulownia)',
+        desc: 'Loài cây cổ thụ quý giá nơi phượng hoàng đậu, biểu trưng cho học giả uyên bác.',
+        unlockDesc: 'Mở khóa khi lưu 15 từ vựng',
+        color: '#B5838D',
+        accent: '#E5989B',
+        unlockCondition: () => state.vocabulary.length >= 15
+      },
+      {
+        id: 'wisteria',
+        name: 'Hoa Tử Đằng',
+        krName: '등나무 (Wisteria)',
+        desc: 'Linh hồn của Dĩ An Tư Hạ — chùm hoa tím rủ xuống thư phòng cổ kính.',
+        unlockDesc: 'Mở khóa khi hoàn thành 2 loài cây bất kỳ',
+        color: '#9D81BA',
+        accent: '#C8B6FF',
+        unlockCondition: () => Object.values(state.garden.plants).filter(p => p.stage >= 5).length >= 2
+      }
+    ];
+
+    // Cumulative stage water thresholds: 5 -> 15 -> 30 -> 50 -> 75 (+10 Sun Seeds to bloom)
+    const STAGE_REQUIREMENTS = [
+      { stage: 1, name: '1. Hạt giống', waterNeeded: 0, sunNeeded: 0 },
+      { stage: 2, name: '2. Mầm non', waterNeeded: 5, sunNeeded: 0 },
+      { stage: 3, name: '3. Cây non', waterNeeded: 15, sunNeeded: 0 },
+      { stage: 4, name: '4. Cây trưởng thành', waterNeeded: 30, sunNeeded: 0 },
+      { stage: 5, name: '5. Nở hoa rực rỡ', waterNeeded: 75, sunNeeded: 10 }
+    ];
+
+    // Valid Reading Timer (Anti-idle, Anti-multi-tab, Anti-background)
+    let lastUserInteractionTs = Date.now();
+    const TAB_INSTANCE_ID = 'tab-' + Math.random().toString(36).slice(2);
+
+    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+      window.addEventListener(evt, () => {
+        lastUserInteractionTs = Date.now();
+      }, { passive: true });
+    });
+
+    // Cross-tab lock using storage event so duplicate tabs don't double-count reading time
+    function claimActiveReadingTab() {
+      try {
+        window.localStorage.setItem('dian_active_reader_tab', JSON.stringify({ id: TAB_INSTANCE_ID, ts: Date.now() }));
+      } catch (_) {}
+    }
+
+    function isThisTabAuthorizedToCount() {
+      if (document.hidden || !document.hasFocus()) return false;
+      if (state.activeTab !== 'reader') return false;
+      if (Date.now() - lastUserInteractionTs > 90000) return false; // Idle > 90s pauses timer
+      try {
+        const raw = window.localStorage.getItem('dian_active_reader_tab');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.id !== TAB_INSTANCE_ID && Date.now() - parsed.ts < 4000) {
+            return false; // Another tab is actively counting
+          }
+        }
+      } catch (_) {}
+      claimActiveReadingTab();
+      return true;
+    }
+
+    setInterval(async () => {
+      const timerBadge = document.getElementById('readerActiveTimer');
+      if (isThisTabAuthorizedToCount()) {
+        state.garden.validSecondsAccumulated += 1;
+        const doc = state.documents.find(d => d.id === state.currentDocId);
+        if (doc && doc.progress) {
+          doc.progress.readingSeconds = (doc.progress.readingSeconds || 0) + 1;
+        }
+
+        if (timerBadge) timerBadge.textContent = '● Đang tính giờ đọc';
+
+        // Every 300 valid seconds (5 minutes) -> +1 Water Drop & prompt optional mini quiz
+        if (state.garden.validSecondsAccumulated >= 300) {
+          state.garden.validSecondsAccumulated -= 300;
+          state.garden.waterDrops += 1;
+          state.garden.totalValidMinutes += 5;
+          checkPlantUnlocks();
+          updateResourceHeaders();
+          await queueCloudSync('garden');
+          showToast('💧 Bạn vừa nhận được 1 Giọt Nước sau 5 phút đọc chăm chỉ!', 'success');
+        }
+      } else {
+        if (timerBadge) {
+          timerBadge.textContent = state.activeTab === 'reader' ? '❚❚ Tạm dừng (Chờ tương tác)' : 'Đang tạm dừng';
+        }
+      }
+      updateResourceHeaders();
+    }, 1000);
+
+    function registerValidWordLookup(lemma) {
+      // Save to lookup history
+      state.lookupHistory = [lemma, ...state.lookupHistory.filter(w => w !== lemma)].slice(0, 40);
+      renderLookupHistory();
+
+      // Prevent spamming the same word repeatedly in the same session
+      if (!state.lookedUpUniqueSession.has(lemma)) {
+        state.lookedUpUniqueSession.add(lemma);
+        state.lookupCountTowardsSun += 1;
+
+        const doc = state.documents.find(d => d.id === state.currentDocId);
+        if (doc && doc.progress) {
+          doc.progress.lookupCount = (doc.progress.lookupCount || 0) + 1;
+        }
+
+        const counterEl = document.getElementById('readerLookupsCounter');
+        if (counterEl) counterEl.textContent = `Tra cứu phiên này: ${state.lookupCountTowardsSun}/10`;
+
+        if (state.lookupCountTowardsSun >= 10) {
+          state.lookupCountTowardsSun = 0;
+          state.garden.sunSeeds += 1;
+          updateResourceHeaders();
+          showToast('☀️ Đạt 10 lượt tra cứu hợp lệ! Bạn nhận được +1 Hạt Mặt Trời!', 'success');
+        }
+        queueCloudSync('garden');
+      }
+    }
+
+    function checkPlantUnlocks() {
+      GARDEN_PLANTS_CATALOG.forEach(meta => {
+        const p = state.garden.plants[meta.id];
+        if (p && !p.unlocked && meta.unlockCondition()) {
+          p.unlocked = true;
+          showToast(`🌿 Loài cây mới đã mở khóa trong vườn: ${meta.name}!`, 'success');
+        }
+      });
+    }
+
+    window.nurturePlant = async function (plantId, resourceType) {
+      const p = state.garden.plants[plantId];
+      if (!p || !p.unlocked) return;
+
+      if (p.stage >= 5) {
+        showToast('Cây đã nở hoa rực rỡ hoàn chỉnh!', 'info');
+        return;
+      }
+
+      if (resourceType === 'water') {
+        if (state.garden.waterDrops <= 0) {
+          showToast('Bạn chưa đủ Giọt Nước. Hãy đọc thêm 5 phút để nhận giọt nước nhé!', 'warning');
+          return;
+        }
+        if (p.waterSpent >= 75) {
+          showToast('Cây đã đủ 75 Giọt Nước! Hãy bón thêm Hạt Mặt Trời để cây nở hoa.', 'info');
+          return;
+        }
+        state.garden.waterDrops -= 1;
+        p.waterSpent += 1;
+      } else if (resourceType === 'sun') {
+        if (state.garden.sunSeeds <= 0) {
+          showToast('Bạn chưa đủ Hạt Mặt Trời. Hãy tra từ mới hoặc làm bài ôn tập từ vựng!', 'warning');
+          return;
+        }
+        if (p.sunSpent >= 10) {
+          showToast('Cây đã nhận đủ 10 Hạt Mặt Trời!', 'info');
+          return;
+        }
+        state.garden.sunSeeds -= 1;
+        p.sunSpent += 1;
+      }
+
+      // Compute stage based on cumulative water (5 -> 15 -> 30 -> 50 -> 75) + 10 Sun Seeds for stage 5
+      let newStage = 1;
+      if (p.waterSpent >= 75 && p.sunSpent >= 10) newStage = 5;
+      else if (p.waterSpent >= 50) newStage = 4;
+      else if (p.waterSpent >= 30) newStage = 3;
+      else if (p.waterSpent >= 15) newStage = 2;
+      else if (p.waterSpent >= 5) newStage = 2;
+
+      if (newStage > p.stage) {
+        p.stage = newStage;
+        const stageLabel = STAGE_REQUIREMENTS.find(s => s.stage === newStage)?.name || '';
+        showToast(`✨ Tuyệt vời! Cây đã phát triển lên giai đoạn: ${stageLabel}!`, 'success');
+        checkPlantUnlocks();
+      }
+
+      updateResourceHeaders();
+      renderGarden();
+      await queueCloudSync('garden');
+    };
+
+    window.renderGarden = function () {
+      checkPlantUnlocks();
+      document.getElementById('gardenWaterDisplay').textContent = state.garden.waterDrops;
+      document.getElementById('gardenSunDisplay').textContent = state.garden.sunSeeds;
+      document.getElementById('gardenTotalMinutes').textContent = `${state.garden.totalValidMinutes} phút`;
+
+      const grid = document.getElementById('gardenPlantsGrid');
+      grid.innerHTML = GARDEN_PLANTS_CATALOG.map(meta => {
+        const p = state.garden.plants[meta.id];
+        const stageObj = STAGE_REQUIREMENTS.find(s => s.stage === p.stage) || STAGE_REQUIREMENTS[0];
+        const waterPct = Math.min(100, Math.round((p.waterSpent / 75) * 100));
+        const sunPct = Math.min(100, Math.round((p.sunSpent / 10) * 100));
+
+        return `
+          <div class="botanical-card rounded-2xl p-5 flex flex-col justify-between gap-4 ${!p.unlocked ? 'opacity-65' : ''}">
+            <div>
+              <div class="flex items-start justify-between gap-2 mb-3">
+                <div>
+                  <h3 class="font-display text-xl font-bold text-parchment">${meta.name}</h3>
+                  <div class="text-xs text-stone-400 font-krSerif">${meta.krName}</div>
+                </div>
+                <span class="text-[11px] px-2.5 py-1 rounded-full ${p.unlocked ? 'bg-moss/25 text-mossLight border border-mossLight/30' : 'bg-stone-800 text-stone-400'}">
+                  ${p.unlocked ? stageObj.name : 'Chưa mở khóa'}
+                </span>
+              </div>
+
+              <!-- Botanical SVG Stage Illustration -->
+              <div class="h-40 rounded-2xl bg-gradient-to-b from-charcoal to-[#18201B] border border-goldLeaf/15 flex items-center justify-center relative overflow-hidden mb-3">
+                ${renderPlantStageSVG(meta, p.stage, p.unlocked)}
+              </div>
+
+              <p class="text-xs text-stone-400 leading-relaxed">${p.unlocked ? meta.desc : `<i class="fa-solid fa-lock mr-1 text-goldLeaf"></i> ${meta.unlockDesc}`}</p>
+            </div>
+
+            ${p.unlocked ? `
+              <div class="space-y-3 pt-2 border-t border-goldLeaf/15">
+                <div class="space-y-1.5 text-[11px]">
+                  <div>
+                    <div class="flex justify-between text-stone-300 mb-0.5">
+                      <span><i class="fa-solid fa-droplet text-sky-400 mr-1"></i>Tưới nước (Mốc: 5/15/30/50/75)</span>
+                      <span class="font-bold text-sky-300">${p.waterSpent} / 75</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-charcoal rounded-full overflow-hidden">
+                      <div class="h-full bg-sky-400 transition-all" style="width: ${waterPct}%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-stone-300 mb-0.5">
+                      <span><i class="fa-solid fa-sun text-amber-400 mr-1"></i>Ánh nắng (Nở hoa cần 10 hạt)</span>
+                      <span class="font-bold text-amber-300">${p.sunSpent} / 10</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-charcoal rounded-full overflow-hidden">
+                      <div class="h-full bg-amber-400 transition-all" style="width: ${sunPct}%"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <button onclick="nurturePlant('${meta.id}', 'water')" class="py-2.5 px-3 rounded-xl bg-sky-950/70 hover:bg-sky-900 border border-sky-400/30 text-sky-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-droplet"></i> Tưới (+1)
+                  </button>
+                  <button onclick="nurturePlant('${meta.id}', 'sun')" class="py-2.5 px-3 rounded-xl bg-amber-950/70 hover:bg-amber-900 border border-amber-400/30 text-amber-200 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-sun"></i> Bón nắng (+1)
+                  </button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    };
+
+    function renderPlantStageSVG(meta, stage, unlocked) {
+      if (!unlocked) {
+        return `<div class="text-center text-stone-500"><i class="fa-solid fa-seedling text-3xl mb-1 opacity-30"></i><div class="text-[11px]">Hạt giống đang ngủ yên</div></div>`;
+      }
+      const c = meta.color;
+      const ac = meta.accent;
+      // 5 Distinct Visual Growth Stages
+      if (stage === 1) {
+        return `
+          <svg viewBox="0 0 120 120" class="w-28 h-28">
+            <ellipse cx="60" cy="102" rx="34" ry="8" fill="#3D2B1F"/>
+            <ellipse cx="60" cy="94" rx="8" ry="6" fill="${c}"/>
+            <path d="M60 88 Q62 82 66 80" stroke="#74C69D" stroke-width="2" fill="none"/>
+          </svg>`;
+      }
+      if (stage === 2) {
+        return `
+          <svg viewBox="0 0 120 120" class="w-28 h-28 plant-sway">
+            <ellipse cx="60" cy="104" rx="36" ry="8" fill="#3D2B1F"/>
+            <path d="M60 102 Q58 84 60 70" stroke="#52B788" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <path d="M60 82 Q44 74 42 64 Q54 64 60 78" fill="#74C69D"/>
+            <path d="M60 78 Q76 70 78 60 Q66 60 60 74" fill="#52B788"/>
+          </svg>`;
+      }
+      if (stage === 3) {
+        return `
+          <svg viewBox="0 0 120 120" class="w-32 h-32 plant-sway">
+            <ellipse cx="60" cy="106" rx="38" ry="8" fill="#3D2B1F"/>
+            <path d="M60 104 Q56 76 60 48" stroke="#40916C" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <path d="M59 86 Q38 78 34 66 Q50 66 59 82" fill="#52B788"/>
+            <path d="M60 74 Q82 66 86 54 Q70 54 60 70" fill="#74C69D"/>
+            <path d="M59 60 Q42 50 40 38 Q54 42 59 56" fill="#52B788"/>
+            <circle cx="60" cy="44" r="5" fill="${c}"/>
+          </svg>`;
+      }
+      if (stage === 4) {
+        return `
+          <svg viewBox="0 0 120 120" class="w-32 h-32 plant-sway">
+            <ellipse cx="60" cy="108" rx="40" ry="8" fill="#3D2B1F"/>
+            <path d="M60 106 Q55 70 60 34" stroke="#2D6A4F" stroke-width="5" stroke-linecap="round" fill="none"/>
+            <path d="M58 88 Q32 80 28 66 Q48 66 58 84" fill="#40916C"/>
+            <path d="M60 76 Q88 68 92 54 Q72 54 60 72" fill="#52B788"/>
+            <path d="M58 60 Q34 48 32 34 Q50 38 58 56" fill="#52B788"/>
+            <path d="M60 48 Q84 38 86 24 Q70 28 60 44" fill="#74C69D"/>
+            <circle cx="60" cy="30" r="8" fill="${c}"/>
+            <circle cx="42" cy="42" r="5" fill="${ac}"/>
+            <circle cx="78" cy="36" r="5" fill="${ac}"/>
+          </svg>`;
+      }
+      // Stage 5: Full Bloom!
+      return `
+        <svg viewBox="0 0 120 120" class="w-36 h-36 plant-sway">
+          <circle cx="60" cy="45" r="36" fill="${c}" opacity="0.14"/>
+          <ellipse cx="60" cy="110" rx="42" ry="8" fill="#3D2B1F"/>
+          <path d="M60 108 Q54 68 60 28" stroke="#2D6A4F" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <path d="M58 90 Q30 82 24 66 Q46 66 58 84" fill="#40916C"/>
+          <path d="M60 78 Q90 70 96 54 Q74 54 60 72" fill="#52B788"/>
+          <path d="M58 62 Q30 50 26 34 Q48 38 58 56" fill="#52B788"/>
+          <path d="M60 50 Q88 40 92 24 Q72 28 60 44" fill="#74C69D"/>
+          <!-- Blossoms -->
+          <g transform="translate(60,26)">
+            <circle cx="0" cy="-9" r="7" fill="${c}"/><circle cx="9" cy="-2" r="7" fill="${ac}"/>
+            <circle cx="6" cy="8" r="7" fill="${c}"/><circle cx="-6" cy="8" r="7" fill="${ac}"/>
+            <circle cx="-9" cy="-2" r="7" fill="${c}"/><circle cx="0" cy="0" r="5" fill="#FDE047"/>
+          </g>
+          <g transform="translate(36,42) scale(0.75)">
+            <circle cx="0" cy="-8" r="7" fill="${ac}"/><circle cx="8" cy="0" r="7" fill="${c}"/>
+            <circle cx="0" cy="8" r="7" fill="${ac}"/><circle cx="-8" cy="0" r="7" fill="${c}"/>
+            <circle cx="0" cy="0" r="4.5" fill="#FDE047"/>
+          </g>
+          <g transform="translate(84,36) scale(0.75)">
+            <circle cx="0" cy="-8" r="7" fill="${c}"/><circle cx="8" cy="0" r="7" fill="${ac}"/>
+            <circle cx="0" cy="8" r="7" fill="${c}"/><circle cx="-8" cy="0" r="7" fill="${ac}"/>
+            <circle cx="0" cy="0" r="4.5" fill="#FDE047"/>
+          </g>
+        </svg>`;
+    }
+
+    // =========================================================================
+    // 14. VOCABULARY QUIZ (EARN SUN SEEDS / DEDUCT ACCUMULATED UNCONVERTED SECONDS)
+    // =========================================================================
+    window.startVocabQuizModal = function () {
+      const pool = state.vocabulary.length >= 3
+        ? state.vocabulary
+        : Object.values(OFFLINE_DICTIONARY_DB);
+
+      const target = pool[Math.floor(Math.random() * pool.length)];
+      const distractors = Object.values(OFFLINE_DICTIONARY_DB)
+        .filter(item => item.lemma !== target.lemma)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3);
+
+      const options = [target, ...distractors].sort(() => 0.5 - Math.random());
+
+      const body = document.getElementById('quizBody');
+      body.innerHTML = `
+        <div class="bg-charcoal rounded-xl p-4 border border-goldLeaf/20 text-center space-y-1">
+          <div class="text-xs text-stone-400">Chọn nghĩa tiếng Việt chính xác cho từ sau:</div>
+          <div class="font-krSerif text-2xl font-bold text-parchment">${escapeHtml(target.lemma)}</div>
+          <div class="text-xs text-wisteria">${escapeHtml(target.pronunciation || '')}</div>
+        </div>
+        <div class="space-y-2">
+          ${options.map(opt => `
+            <button onclick="submitQuizAnswer('${escapeHtml(target.lemma)}', '${escapeHtml(opt.lemma)}')" class="w-full text-left p-3 rounded-xl bg-charcoal hover:bg-slateDark border border-goldLeaf/15 text-xs text-parchment transition">
+              ${escapeHtml(opt.meaningVi)}
+            </button>
+          `).join('')}
+        </div>
+        <div class="text-[11px] text-stone-400 text-center">
+          Trả lời đúng: <span class="text-amber-400">+1 Hạt Mặt Trời</span> • Trả lời sai: <span class="text-red-300">-1 phút tích lũy chưa đổi giọt nước</span>
+        </div>
+      `;
+      document.getElementById('vocabQuizModal').classList.remove('hidden');
+    };
+
+    window.submitQuizAnswer = async function (correctLemma, chosenLemma) {
+      const entry = OFFLINE_DICTIONARY_DB[correctLemma] || state.vocabulary.find(v => v.lemma === correctLemma);
+      const isCorrect = correctLemma === chosenLemma;
+      const body = document.getElementById('quizBody');
+
+      if (isCorrect) {
+        state.garden.sunSeeds += 1;
+        updateResourceHeaders();
+        await queueCloudSync('garden');
+        body.innerHTML = `
+          <div class="bg-moss/25 border border-mossLight/40 rounded-xl p-4 space-y-2 text-xs">
+            <div class="text-base font-bold text-mossLight"><i class="fa-solid fa-circle-check mr-1"></i> Chính xác! +1 Hạt Mặt Trời</div>
+            <p class="text-parchment"><strong>${escapeHtml(correctLemma)}</strong>: ${escapeHtml(entry?.meaningVi || '')}</p>
+            <p class="text-stone-300 italic">${escapeHtml(entry?.grammar || '')}</p>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button onclick="startVocabQuizModal()" class="px-4 py-2 rounded-xl bg-wisteria/30 text-parchment text-xs font-semibold">Câu tiếp theo</button>
+            <button onclick="closeVocabQuizModal()" class="px-4 py-2 rounded-xl bg-charcoal text-stone-300 text-xs">Đóng</button>
+          </div>`;
+      } else {
+        // Deduct up to 60s from unconverted reading accumulation (never below 0, never deducts already earned water drops)
+        state.garden.validSecondsAccumulated = Math.max(0, state.garden.validSecondsAccumulated - 60);
+        updateResourceHeaders();
+        body.innerHTML = `
+          <div class="bg-red-950/50 border border-red-500/30 rounded-xl p-4 space-y-2 text-xs">
+            <div class="text-base font-bold text-red-300"><i class="fa-solid fa-circle-xmark mr-1"></i> Chưa chính xác (-1 phút tích lũy đọc)</div>
+            <p class="text-parchment">Đáp án đúng của <strong>${escapeHtml(correctLemma)}</strong> là: ${escapeHtml(entry?.meaningVi || '')}</p>
+            <p class="text-stone-300 italic">${escapeHtml(entry?.grammar || '')}</p>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button onclick="startVocabQuizModal()" class="px-4 py-2 rounded-xl bg-wisteria/30 text-parchment text-xs font-semibold">Thử câu khác</button>
+            <button onclick="closeVocabQuizModal()" class="px-4 py-2 rounded-xl bg-charcoal text-stone-300 text-xs">Đóng</button>
+          </div>`;
+      }
+    };
+
+    window.closeVocabQuizModal = () => document.getElementById('vocabQuizModal').classList.add('hidden');
+
+    // =========================================================================
+    // 15. VOCABULARY NOTEBOOK, STANDALONE DICTIONARY & OFFLINE PACKS
+    // =========================================================================
+    window.saveCurrentWordToNotebook = async function () {
+      if (!currentPopoverWordData) return;
+      const { lemma, entry, contextSentence, breakdown } = currentPopoverWordData;
+      const doc = state.documents.find(d => d.id === state.currentDocId);
+
+      const existingIdx = state.vocabulary.findIndex(v => v.lemma === lemma);
+      if (existingIdx !== -1) {
+        showToast(`Từ "${lemma}" đã có trong sổ tay của bạn.`, 'info');
+        return;
+      }
+
+      const item = {
+        id: 'vocab-' + Date.now(),
+        lemma,
+        meaningVi: entry?.meaningVi || breakdown,
+        pronunciation: entry?.pronunciation || '',
+        pos: entry?.pos || 'Từ vựng',
+        grammar: entry?.grammar || breakdown,
+        exampleKr: entry?.exampleKr || contextSentence,
+        contextSentence,
+        docTitle: doc?.title || 'Tra cứu tự do',
+        addedAt: Date.now(),
+        note: '',
+        mastery: 1
+      };
+
+      state.vocabulary.unshift(item);
+      document.getElementById('popSaveWordBtn').innerHTML = '<i class="fa-solid fa-bookmark text-goldLeaf"></i>';
+      updateNotebookBadge();
+      checkPlantUnlocks();
+      renderReaderChapter();
+      await queueCloudSync('vocabulary');
+      showToast(`Đã lưu "${lemma}" vào sổ tay từ vựng!`, 'success');
+    };
+
+    window.saveSentenceToNotebook = async function () {
+      if (!currentSelectedSentenceText) return;
+      await saveCustomPhraseToNotebook(currentSelectedSentenceText);
+    };
+
+    async function saveCustomPhraseToNotebook(krText) {
+      const doc = state.documents.find(d => d.id === state.currentDocId);
+      const cachedTrans = state.aiCache[`sent:${currentTranslationMode}:${krText}`];
+      const cleanMeaning = cachedTrans
+        ? cachedTrans.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220)
+        : 'Câu/Cụm từ lưu từ truyện';
+
+      state.vocabulary.unshift({
+        id: 'vocab-' + Date.now(),
+        lemma: krText,
+        meaningVi: cleanMeaning,
+        pronunciation: '',
+        pos: 'Câu/Cụm từ',
+        grammar: 'Câu văn lưu trực tiếp trong phòng đọc',
+        exampleKr: krText,
+        contextSentence: krText,
+        docTitle: doc?.title || 'Phòng đọc',
+        addedAt: Date.now(),
+        note: '',
+        mastery: 1
+      });
+      updateNotebookBadge();
+      await queueCloudSync('vocabulary');
+      showToast('Đã lưu nguyên câu vào sổ tay học tập!', 'success');
+    }
+
+    window.renderNotebook = function () {
+      updateNotebookBadge();
+      const listEl = document.getElementById('notebookList');
+      const q = (document.getElementById('nbSearchInput')?.value || '').toLowerCase();
+      const posFilter = document.getElementById('nbPosFilter')?.value || 'all';
+      const masteryFilter = document.getElementById('nbMasteryFilter')?.value || 'all';
+
+      const items = state.vocabulary.filter(v => {
+        const matchQ = v.lemma.toLowerCase().includes(q) || v.meaningVi.toLowerCase().includes(q) || (v.note || '').toLowerCase().includes(q);
+        if (!matchQ) return false;
+        if (posFilter !== 'all' && v.pos !== posFilter) return false;
+        if (masteryFilter !== 'all' && String(v.mastery) !== masteryFilter) return false;
+        return true;
+      });
+
+      if (items.length === 0) {
+        listEl.innerHTML = `<div class="col-span-full botanical-card rounded-2xl p-8 text-center text-stone-400 text-sm">Sổ tay chưa có mục từ nào khớp điều kiện lọc. Hãy chạm vào từ khi đọc truyện để lưu!</div>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map(v => `
+        <div class="botanical-card rounded-2xl p-4 space-y-2.5 flex flex-col justify-between">
+          <div class="space-y-1.5">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <span class="font-krSerif text-lg font-bold text-parchment">${escapeHtml(v.lemma)}</span>
+                <span class="text-xs text-stone-400 ml-1.5">${escapeHtml(v.pronunciation || '')}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="speakKoreanText('${escapeHtml(v.lemma)}')" class="p-1.5 text-goldLeaf hover:bg-white/10 rounded-lg" title="Phát âm">
+                  <i class="fa-solid fa-volume-high text-xs"></i>
+                </button>
+                <button onclick="cycleVocabMastery('${v.id}')" class="px-2 py-1 rounded-lg bg-charcoal border border-goldLeaf/20 text-[11px] text-amber-400" title="Đổi mức độ thành thạo">
+                  ${'★'.repeat(v.mastery || 1)}${'☆'.repeat(3 - (v.mastery || 1))}
+                </button>
+                <button onclick="deleteVocabItem('${v.id}')" class="p-1.5 text-stone-500 hover:text-red-400 rounded-lg">
+                  <i class="fa-solid fa-trash text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="text-xs text-wisteriaGlow font-medium">${escapeHtml(v.pos)} • <span class="text-stone-400">${escapeHtml(v.docTitle)}</span></div>
+            <div class="text-sm text-parchment">${escapeHtml(v.meaningVi)}</div>
+            ${v.contextSentence ? `<div class="text-xs font-krSerif text-stone-400 bg-charcoal/80 p-2 rounded-lg border-l-2 border-mossLight">"${escapeHtml(v.contextSentence)}"</div>` : ''}
+          </div>
+
+          <div class="pt-1">
+            <input type="text" value="${escapeHtml(v.note || '')}" onchange="updateVocabPersonalNote('${v.id}', this.value)" placeholder="Thêm ghi chú cá nhân..." class="w-full bg-charcoal/70 border border-goldLeaf/15 focus:border-wisteria rounded-lg px-2.5 py-1.5 text-xs text-stone-200 outline-none" />
+          </div>
+        </div>
+      `).join('');
+    };
+
+    window.cycleVocabMastery = async function (id) {
+      const item = state.vocabulary.find(v => v.id === id);
+      if (!item) return;
+      item.mastery = ((item.mastery || 1) % 3) + 1;
+      await queueCloudSync('vocabulary');
+      renderNotebook();
+    };
+
+    window.updateVocabPersonalNote = async function (id, noteVal) {
+      const item = state.vocabulary.find(v => v.id === id);
+      if (!item) return;
+      item.note = noteVal;
+      await queueCloudSync('vocabulary');
+      showToast('Đã cập nhật ghi chú từ vựng.', 'success');
+    };
+
+    window.deleteVocabItem = async function (id) {
+      state.vocabulary = state.vocabulary.filter(v => v.id !== id);
+      await queueCloudSync('vocabulary');
+      renderNotebook();
+      updateNotebookBadge();
+    };
+
+    window.exportNotebookCSV = function () {
+      if (state.vocabulary.length === 0) {
+        showToast('Sổ tay từ vựng đang trống.', 'warning');
+        return;
+      }
+      const headers = ['TiengHan', 'PhatAm', 'TuLoai', 'NghiaTiengViet', 'CauNguCanh', 'TaiLieu', 'GhiChu'];
+      const rows = state.vocabulary.map(v => [
+        v.lemma, v.pronunciation, v.pos, v.meaningVi, v.contextSentence, v.docTitle, v.note
+      ].map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(','));
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DiAnTuHa_SoTayTuVung_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Đã xuất tệp CSV thành công!', 'success');
+    };
+
+    // Standalone Dictionary Search
+    window.quickDemoWord = function (word) {
+      document.getElementById('standaloneDictInput').value = word;
+      executeStandaloneSearch();
+    };
+
+    window.executeStandaloneSearch = function () {
+      const query = document.getElementById('standaloneDictInput').value.trim();
+      if (!query) return;
+
+      const box = document.getElementById('standaloneDictResult');
+      box.classList.remove('hidden');
+
+      // Check Korean morphology or Vietnamese meaning search
+      const isHangul = /[\uAC00-\uD7A3]/.test(query);
+      if (isHangul) {
+        const analysis = analyzeKoreanMorphology(query);
+        registerValidWordLookup(analysis.lemma);
+        const e = analysis.entry;
+        box.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border-b border-goldLeaf/15 pb-2.5">
+              <div>
+                <span class="font-krSerif text-2xl font-bold text-parchment">${escapeHtml(analysis.lemma)}</span>
+                <span class="text-xs text-stone-400 ml-2">${escapeHtml(e?.pronunciation || '')}</span>
+                <span class="text-xs text-wisteria ml-2">${e?.hanja ? `[${e.hanja}]` : ''}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="speakKoreanText('${escapeHtml(analysis.lemma)}')" class="p-2 rounded-xl bg-charcoal text-goldLeaf"><i class="fa-solid fa-volume-high"></i></button>
+                <a href="https://korean.dict.naver.com/kovidict/#/search?query=${encodeURIComponent(analysis.lemma)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl bg-emerald-950 text-emerald-300 text-xs border border-emerald-500/30">Mở Naver</a>
+              </div>
+            </div>
+            <div class="text-xs bg-charcoal p-2.5 rounded-xl border-l-2 border-wisteria text-stone-300">${escapeHtml(analysis.breakdown)}</div>
+            <div class="text-sm text-parchment font-medium">${e ? escapeHtml(e.meaningVi) : 'Chưa có trong gói từ điển ngoại tuyến đã tải.'}</div>
+            ${e ? `<div class="text-xs text-stone-400"><strong>Ngữ pháp:</strong> ${escapeHtml(e.grammar)}</div>
+                   <div class="bg-moss/10 border border-mossLight/25 p-3 rounded-xl text-xs space-y-1">
+                     <div class="font-krSerif text-parchment">${escapeHtml(e.exampleKr)}</div>
+                     <div class="text-stone-400 italic">${escapeHtml(e.exampleVi)}</div>
+                   </div>` : ''}
+          </div>`;
+      } else {
+        // Search by Vietnamese meaning in offline dictionary
+        const matches = Object.values(OFFLINE_DICTIONARY_DB).filter(item =>
+          item.meaningVi.toLowerCase().includes(query.toLowerCase())
+        );
+        if (matches.length === 0) {
+          box.innerHTML = `<div class="text-xs text-stone-400">Không tìm thấy từ tiếng Hàn nào khớp nghĩa "${escapeHtml(query)}" trong gói từ điển ngoại tuyến.</div>`;
+        } else {
+          box.innerHTML = `<div class="space-y-2.5">${matches.map(m => `
+            <div class="p-3 rounded-xl bg-charcoal border border-goldLeaf/15 flex items-center justify-between gap-3">
+              <div>
+                <div class="font-krSerif text-base font-bold text-goldLeaf">${escapeHtml(m.lemma)} <span class="text-xs font-sans font-normal text-stone-400">${escapeHtml(m.pronunciation)}</span></div>
+                <div class="text-xs text-parchment mt-0.5">${escapeHtml(m.meaningVi)}</div>
+              </div>
+              <button onclick="speakKoreanText('${escapeHtml(m.lemma)}')" class="p-2 rounded-lg bg-obsidian text-goldLeaf"><i class="fa-solid fa-volume-high"></i></button>
+            </div>
+          `).join('')}</div>`;
+        }
+      }
+    };
+
+    function renderLookupHistory() {
+      const box = document.getElementById('lookupHistoryChips');
+      if (!box) return;
+      if (state.lookupHistory.length === 0) {
+        box.innerHTML = `<span class="text-xs text-stone-500">Chưa có lịch sử tra cứu.</span>`;
+        return;
+      }
+      box.innerHTML = state.lookupHistory.map(w => `
+        <button onclick="quickDemoWord('${escapeHtml(w)}')" class="px-3 py-1.5 rounded-xl bg-charcoal hover:bg-slateDark border border-goldLeaf/15 text-xs font-krSerif text-parchment transition">
+          ${escapeHtml(w)}
+        </button>
+      `).join('');
+    }
+
+    window.renderOfflinePacks = function () {
+      const grid = document.getElementById('offlinePacksGrid');
+      if (!grid) return;
+      grid.innerHTML = OFFLINE_DICT_PACKS.map(pack => {
+        const isInstalled = state.downloadedPacks.includes(pack.id);
+        return `
+          <div class="bg-charcoal/90 border border-goldLeaf/20 rounded-xl p-4 flex flex-col justify-between gap-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <span class="text-[11px] px-2 py-0.5 rounded bg-wisteria/20 text-wisteriaGlow">${pack.level}</span>
+                <span class="text-[11px] text-stone-400">${pack.count} mục từ mẫu</span>
+              </div>
+              <h4 class="font-bold text-sm text-parchment">${pack.name}</h4>
+              <p class="text-xs text-stone-400 mt-1">${pack.desc}</p>
+            </div>
+            <button onclick="toggleDownloadOfflinePack('${pack.id}')" class="w-full py-2 rounded-xl text-xs font-semibold transition ${isInstalled ? 'bg-moss/25 text-mossLight border border-mossLight/30' : 'bg-moss text-parchment'}">
+              ${isInstalled ? '<i class="fa-solid fa-check mr-1"></i> Đã lưu ngoại tuyến (IndexedDB)' : '<i class="fa-solid fa-download mr-1"></i> Tải gói về thiết bị'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    };
+
+    window.toggleDownloadOfflinePack = async function (packId) {
+      if (!state.downloadedPacks.includes(packId)) {
+        state.downloadedPacks.push(packId);
+        await idbSet('downloadedPacks', state.downloadedPacks);
+        renderOfflinePacks();
+        showToast('Đã lưu gói từ điển vào IndexedDB để dùng khi ngoại tuyến!', 'success');
+      } else {
+        showToast('Gói dữ liệu này đã có sẵn trên thiết bị của bạn.', 'info');
+      }
+    };
+
+    // =========================================================================
+    // 16. DOCUMENT ANCHORED NOTES & BACKGROUND AUDIO PLAYER
+    // =========================================================================
+    let currentNoteTargetText = '';
+
+    window.openNoteModalForTarget = function (type) {
+      if (type === 'word' && currentPopoverWordData) {
+        currentNoteTargetText = currentPopoverWordData.surface;
+      } else if (type === 'sentence' && currentSelectedSentenceText) {
+        currentNoteTargetText = currentSelectedSentenceText;
+      } else {
+        currentNoteTargetText = '';
+      }
+      document.getElementById('noteTargetLabel').textContent = currentNoteTargetText
+        ? `Gắn tại: "${currentNoteTargetText.slice(0, 60)}..."`
+        : 'Ghi chú chung cho tài liệu';
+      document.getElementById('notesDrawerModal').classList.remove('hidden');
+      renderDocumentNotesList();
+    };
+
+    window.toggleNotesDrawer = function () {
+      const modal = document.getElementById('notesDrawerModal');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) {
+        currentNoteTargetText = '';
+        document.getElementById('noteTargetLabel').textContent = 'Ghi chú chung cho tài liệu';
+        renderDocumentNotesList();
+      }
+    };
+
+    window.saveDocumentNote = async function () {
+      const text = document.getElementById('noteContentInput').value.trim();
+      if (!text) return showToast('Vui lòng nhập nội dung ghi chú.', 'warning');
+
+      state.notes.unshift({
+        id: 'note-' + Date.now(),
+        docId: state.currentDocId,
+        chapterIdx: state.currentChapterIdx,
+        targetText: currentNoteTargetText,
+        content: text,
+        isPrivate: !document.getElementById('notePublicToggle').checked,
+        createdAt: Date.now()
+      });
+
+      document.getElementById('noteContentInput').value = '';
+      await queueCloudSync('notes');
+      renderDocumentNotesList();
+      renderReaderChapter();
+      showToast('Đã lưu ghi chú riêng tư tại vị trí đọc!', 'success');
+    };
+
+    function renderDocumentNotesList() {
+      const list = document.getElementById('docNotesList');
+      const docNotes = state.notes.filter(n => n.docId === state.currentDocId);
+      if (docNotes.length === 0) {
+        list.innerHTML = `<div class="text-stone-500 text-center py-4">Chưa có ghi chú nào cho tài liệu này.</div>`;
+        return;
+      }
+      list.innerHTML = docNotes.map(n => `
+        <div class="bg-charcoal p-3 rounded-xl border border-goldLeaf/15 space-y-1">
+          <div class="flex items-center justify-between text-[11px] text-stone-400">
+            <span>Phần ${n.chapterIdx + 1} • ${new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
+            <button onclick="deleteDocumentNote('${n.id}')" class="text-stone-500 hover:text-red-400"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          ${n.targetText ? `<div class="font-krSerif text-wisteriaGlow text-xs border-l-2 border-wisteria pl-2">"${escapeHtml(n.targetText)}"</div>` : ''}
+          <div class="text-parchment">${escapeHtml(n.content)}</div>
+        </div>
+      `).join('');
+    }
+
+    window.deleteDocumentNote = async function (id) {
+      state.notes = state.notes.filter(n => n.id !== id);
+      await queueCloudSync('notes');
+      renderDocumentNotesList();
+      renderReaderChapter();
+    };
+
+    // Music Player (User Uploaded Local Audio Files)
+    const playlist = [];
+    let currentTrackIndex = -1;
+
+    window.toggleMusicDrawer = () => document.getElementById('musicPlayerModal').classList.toggle('hidden');
+
+    window.handleAudioFilesUpload = function (e) {
+      const files = Array.from(e.target.files || []);
+      files.forEach(file => {
+        playlist.push({
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          url: URL.createObjectURL(file)
+        });
+      });
+      renderAudioPlaylist();
+      if (currentTrackIndex === -1 && playlist.length > 0) {
+        selectAudioTrack(0, false); // Do not auto-play without explicit user click
+      }
+      showToast(`Đã thêm ${files.length} bản nhạc vào danh sách phát.`, 'success');
+    };
+
+    function renderAudioPlaylist() {
+      const box = document.getElementById('audioPlaylistBox');
+      if (playlist.length === 0) return;
+      box.innerHTML = playlist.map((t, idx) => `
+        <button onclick="selectAudioTrack(${idx}, true)" class="w-full text-left px-3 py-2 rounded-xl flex items-center justify-between ${idx === currentTrackIndex ? 'bg-moss/30 text-parchment border border-mossLight/40' : 'bg-charcoal text-stone-400 hover:text-parchment'}">
+          <span class="truncate">${idx + 1}. ${escapeHtml(t.name)}</span>
+          ${idx === currentTrackIndex ? '<i class="fa-solid fa-volume-high text-mossLight text-[10px]"></i>' : ''}
+        </button>
+      `).join('');
+    }
+
+    window.selectAudioTrack = function (idx, autoPlay) {
+      if (!playlist[idx]) return;
+      currentTrackIndex = idx;
+      const audio = document.getElementById('bgAudioElement');
+      audio.src = playlist[idx].url;
+      document.getElementById('currentTrackName').textContent = playlist[idx].name;
+      renderAudioPlaylist();
+      if (autoPlay) {
+        audio.play();
+        updateAudioPlayUI(true);
+      }
+    };
+
+    window.togglePlayPauseAudio = function () {
+      const audio = document.getElementById('bgAudioElement');
+      if (playlist.length === 0) {
+        showToast('Hãy tải tệp âm thanh cá nhân lên trước khi phát.', 'info');
+        return;
+      }
+      if (currentTrackIndex === -1) selectAudioTrack(0, true);
+      else if (audio.paused) {
+        audio.play();
+        updateAudioPlayUI(true);
+      } else {
+        audio.pause();
+        updateAudioPlayUI(false);
+      }
+    };
+
+    window.prevAudioTrack = () => playlist.length && selectAudioTrack((currentTrackIndex - 1 + playlist.length) % playlist.length, true);
+    window.nextAudioTrack = () => playlist.length && selectAudioTrack((currentTrackIndex + 1) % playlist.length, true);
+    window.handleAudioEnded = () => nextAudioTrack();
+    window.setAudioVolume = (val) => { document.getElementById('bgAudioElement').volume = parseFloat(val); };
+    window.toggleLoopTrack = function () {
+      const audio = document.getElementById('bgAudioElement');
+      audio.loop = !audio.loop;
+      document.getElementById('loopTrackBtn').classList.toggle('text-goldLeaf', audio.loop);
+    };
+
+    function updateAudioPlayUI(isPlaying) {
+      document.getElementById('playPauseAudioBtn').innerHTML = isPlaying
+        ? '<i class="fa-solid fa-pause"></i>'
+        : '<i class="fa-solid fa-play"></i>';
+      document.getElementById('currentTrackStatus').textContent = isPlaying ? 'Đang phát nền...' : 'Đã tạm dừng';
+      document.getElementById('musicPlayingDot').classList.toggle('hidden', !isPlaying);
+    }
+
+    // =========================================================================
+    // 17. READER TYPOGRAPHY, THEME, FULLSCREEN & SPEECH SYNTHESIS
+    // =========================================================================
+    window.toggleReaderSettingsPanel = () => document.getElementById('readerSettingsModal').classList.toggle('hidden');
+
+    window.applyReaderTheme = function (preset) {
+      const themes = {
+        darkAcademia: { bgColor: '#191C1A', textColor: '#EDE8DC' },
+        oldParchment: { bgColor: '#F3EFE6', textColor: '#2B2620' },
+        warmWood: { bgColor: '#261E18', textColor: '#EADBC8' },
+        midnightInk: { bgColor: '#111217', textColor: '#D8D6E2' }
+      };
+      if (themes[preset]) {
+        state.readerSettings.theme = preset;
+        state.readerSettings.bgColor = themes[preset].bgColor;
+        state.readerSettings.textColor = themes[preset].textColor;
+        applyReaderTypographyStyles();
+        idbSet('readerSettings', state.readerSettings);
+      }
+    };
+
+    window.updateReaderTypography = function () {
+      state.readerSettings.fontFamily = document.getElementById('rdFontSelect').value;
+      state.readerSettings.textAlign = document.getElementById('rdAlignSelect').value;
+      state.readerSettings.fontSize = parseInt(document.getElementById('rdFontSize').value, 10);
+      state.readerSettings.lineHeight = parseFloat(document.getElementById('rdLineHeight').value);
+      state.readerSettings.paraGap = parseInt(document.getElementById('rdParaGap').value, 10);
+      state.readerSettings.maxWidth = parseInt(document.getElementById('rdMaxWidth').value, 10);
+
+      document.getElementById('rdFontSizeVal').textContent = state.readerSettings.fontSize + 'px';
+      document.getElementById('rdLineHeightVal').textContent = state.readerSettings.lineHeight;
+      document.getElementById('rdParaGapVal').textContent = state.readerSettings.paraGap + 'px';
+      document.getElementById('rdWidthVal').textContent = state.readerSettings.maxWidth + 'px';
+
+      applyReaderTypographyStyles();
+      idbSet('readerSettings', state.readerSettings);
+    };
+
+    function applyReaderTypographyStyles() {
+      const paper = document.getElementById('readerPaper');
+      if (!paper) return;
+      const s = state.readerSettings;
+      paper.style.backgroundColor = s.bgColor;
+      paper.style.color = s.textColor;
+      paper.style.fontFamily = s.fontFamily;
+      paper.style.fontSize = s.fontSize + 'px';
+      paper.style.lineHeight = s.lineHeight;
+      paper.style.textAlign = s.textAlign;
+      paper.style.maxWidth = s.maxWidth + 'px';
+      document.querySelectorAll('.kr-paragraph').forEach(p => {
+        p.style.marginBottom = s.paraGap + 'px';
+      });
+    }
+
+    window.saveReaderPresetProfile = async function () {
+      await queueCloudSync('readerSettings');
+      showToast('Đã lưu cấu hình phòng đọc của bạn!', 'success');
+    };
+
+    window.toggleDistractionFreeMode = function () {
+      state.isFullscreen = !state.isFullscreen;
+      document.getElementById('mainHeader').classList.toggle('hidden', state.isFullscreen);
+      document.getElementById('mobileBottomNav').classList.toggle('hidden', state.isFullscreen);
+      document.getElementById('fullscreenBtn').innerHTML = state.isFullscreen
+        ? '<i class="fa-solid fa-compress text-goldLeaf"></i>'
+        : '<i class="fa-solid fa-expand"></i>';
+
+      if (state.isFullscreen && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else if (!state.isFullscreen && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+
+    // Korean TTS Pronunciation (Web Speech API ko-KR)
+    window.speakKoreanText = function (text) {
+      if (!text) return;
+      if (!('speechSynthesis' in window)) {
+        showToast('Trình duyệt chưa hỗ trợ đọc phát âm tự động.', 'warning');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ko-KR';
+      utterance.rate = 0.92;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // Save reading scroll progress automatically
+    let scrollSaveTimeout = null;
+    window.addEventListener('scroll', () => {
+      if (state.activeTab !== 'reader' || !state.currentDocId) return;
+      clearTimeout(scrollSaveTimeout);
+      scrollSaveTimeout = setTimeout(() => {
+        const doc = state.documents.find(d => d.id === state.currentDocId);
+        if (!doc) return;
+        doc.progress.scrollTop = window.scrollY;
+        doc.updatedAt = Date.now();
+        updateDocumentProgressPercent();
+        idbSet('documents', state.documents);
+      }, 400);
+    }, { passive: true });
+
+    function updateDocumentProgressPercent() {
+      const doc = state.documents.find(d => d.id === state.currentDocId);
+      if (!doc) return;
+      const totalChapters = doc.chapters.length || 1;
+      const scrollRatio = Math.min(1, (window.scrollY + window.innerHeight * 0.6) / Math.max(1, document.body.scrollHeight));
+      const pct = Math.min(100, Math.round(((state.currentChapterIdx + scrollRatio) / totalChapters) * 100));
+      doc.progress.percent = Math.max(doc.progress.percent || 0, pct);
+      const badge = document.getElementById('readerProgressPercent');
+      if (badge) badge.textContent = `${doc.progress.percent}%`;
+    }
+
+    // =========================================================================
+    // 18. NAVIGATION, SUB-TABS, SETTINGS & UTILITIES
+    // =========================================================================
+    window.switchTab = function (tabName) {
+      state.activeTab = tabName;
+      document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+      const activeSec = document.getElementById(`view-${tabName}`);
+      if (activeSec) activeSec.classList.remove('hidden');
+
+      // Update Desktop Nav styles
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        if (btn.dataset.nav === tabName) {
+          btn.className = 'nav-btn px-3.5 py-2 rounded-xl text-sm font-semibold bg-moss text-parchment shadow transition flex items-center gap-2';
+        } else {
+          btn.className = 'nav-btn px-3.5 py-2 rounded-xl text-sm font-medium text-stone-400 hover:text-parchment transition flex items-center gap-2';
+        }
+      });
+
+      // Update Mobile Bottom Nav styles
+      document.querySelectorAll('.mob-nav-btn').forEach(btn => {
+        if (btn.dataset.nav === tabName) {
+          btn.className = 'mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs text-goldLeaf font-semibold bg-obsidian';
+        } else {
+          btn.className = 'mob-nav-btn flex flex-col items-center justify-center py-1.5 px-3 rounded-xl text-xs text-stone-400';
+        }
+      });
+
+      if (tabName === 'library') renderLibrary();
+      if (tabName === 'reader' && !state.currentDocId && state.documents.length > 0) {
+        openDocumentInReader(state.documents[0].id);
+      }
+      if (tabName === 'dictionary') {
+        renderLookupHistory();
+        renderNotebook();
+        renderOfflinePacks();
+      }
+      if (tabName === 'garden') renderGarden();
+    };
+
+    window.switchDictSubTab = function (sub) {
+      ['search', 'notebook', 'offlinePacks'].forEach(name => {
+        document.getElementById(`dictSubView-${name}`).classList.toggle('hidden', name !== sub);
+      });
+      document.getElementById('subTabDictSearch').className = sub === 'search'
+        ? 'px-4 py-2 rounded-xl text-sm font-semibold bg-moss text-parchment transition'
+        : 'px-4 py-2 rounded-xl text-sm font-semibold bg-obsidian text-stone-300 border border-goldLeaf/20 transition';
+      document.getElementById('subTabNotebook').className = sub === 'notebook'
+        ? 'px-4 py-2 rounded-xl text-sm font-semibold bg-moss text-parchment transition'
+        : 'px-4 py-2 rounded-xl text-sm font-semibold bg-obsidian text-stone-300 border border-goldLeaf/20 transition';
+      document.getElementById('subTabOfflinePacks').className = sub === 'offlinePacks'
+        ? 'px-4 py-2 rounded-xl text-sm font-semibold bg-moss text-parchment transition'
+        : 'px-4 py-2 rounded-xl text-sm font-semibold bg-obsidian text-stone-300 border border-goldLeaf/20 transition';
+
+      if (sub === 'notebook') renderNotebook();
+      if (sub === 'offlinePacks') renderOfflinePacks();
+    };
+
+    window.saveAppConfig = async function () {
+      state.appConfig.defaultTranslateMode = document.getElementById('cfgDefaultTranslateMode').value;
+      state.appConfig.learnerLevel = document.getElementById('cfgLearnerLevel').value;
+      state.appConfig.geminiApiKey = document.getElementById('cfgGeminiApiKey').value.trim();
+      state.appConfig.niklApiKey = document.getElementById('cfgNiklApiKey').value.trim();
+      await idbSet('appConfig', state.appConfig);
+      showToast('Đã lưu cấu hình AI & Từ điển.', 'success');
+    };
+
+    window.exportFullBackupJSON = function () {
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        documents: state.documents,
+        vocabulary: state.vocabulary,
+        notes: state.notes,
+        garden: state.garden
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DiAnTuHa_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Đã tải xuống bản sao lưu dữ liệu JSON!', 'success');
+    };
+
+    function updateResourceHeaders() {
+      document.getElementById('headerWaterCount').textContent = state.garden.waterDrops;
+      document.getElementById('headerSunCount').textContent = state.garden.sunSeeds;
+      const mins = String(Math.floor(state.garden.validSecondsAccumulated / 60)).padStart(2, '0');
+      const secs = String(state.garden.validSecondsAccumulated % 60).padStart(2, '0');
+      document.getElementById('headerReadTimer').textContent = `${mins}:${secs}`;
+    }
+
+    function updateNotebookBadge() {
+      const el = document.getElementById('notebookCountBadge');
+      if (el) el.textContent = state.vocabulary.length;
+    }
+
+    function refreshAllViews() {
+      updateResourceHeaders();
+      updateNotebookBadge();
+      renderLibrary();
+      renderGarden();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatMarkdownSimple(md) {
+      return escapeHtml(md)
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-goldLeaf">$1</strong>')
+        .replace(/\n/g, '<br/>');
+    }
+
+    window.showToast = function (message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const colors = {
+        success: 'border-mossLight bg-obsidian text-parchment',
+        warning: 'border-amber-400 bg-obsidian text-amber-100',
+        error: 'border-red-500 bg-obsidian text-red-200',
+        info: 'border-wisteria bg-obsidian text-parchment'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-2xl text-xs font-medium backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    };
+
+    // Online / Offline Event Listeners
+    function updateOnlineStatus() {
+      const banner = document.getElementById('networkBanner');
+      if (!navigator.onLine) {
+        banner.classList.remove('hidden');
+        updateSyncUI('offline');
+      } else {
+        banner.classList.add('hidden');
+        if (db && currentUser) syncWithFirestore();
+      }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    // =========================================================================
+    // 19. APPLICATION BOOTSTRAP
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      await initIndexedDB();
+      await loadStateFromLocal();
+
+      // Hydrate settings inputs
+      document.getElementById('cfgDefaultTranslateMode').value = state.appConfig.defaultTranslateMode;
+      document.getElementById('cfgLearnerLevel').value = state.appConfig.learnerLevel;
+      document.getElementById('cfgGeminiApiKey').value = state.appConfig.geminiApiKey || '';
+      document.getElementById('cfgNiklApiKey').value = state.appConfig.niklApiKey || '';
+
+      document.getElementById('rdFontSelect').value = state.readerSettings.fontFamily;
+      document.getElementById('rdAlignSelect').value = state.readerSettings.textAlign;
+      document.getElementById('rdFontSize').value = state.readerSettings.fontSize;
+      document.getElementById('rdLineHeight').value = state.readerSettings.lineHeight;
+      document.getElementById('rdParaGap').value = state.readerSettings.paraGap;
+      document.getElementById('rdMaxWidth').value = state.readerSettings.maxWidth;
+
+      updateOnlineStatus();
+      refreshAllViews();
+      switchTab('library');
+      await initCloudServices();
+    });
+  </script>
+</body>
+</html>
